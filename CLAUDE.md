@@ -218,3 +218,52 @@ Key tables (37 total): `accounts` (with `provider` "gmail_api"|"imap", IMAP/SMTP
 - **Quick steps**: Custom action chains with 18 action types. Executor in `services/quickSteps/executor.ts`
 - **Split inbox**: Category tabs (Primary/Updates/Promotions/Social/Newsletters) with backfill service for existing threads
 - **Help page**: In-app help at `/help/$topic` with 13 categories, searchable cards, and contextual `HelpTooltip` component. All content in `src/constants/helpContent.ts`. After adding a new feature, run `/document-feature` to add its help card
+
+## Git Workflow (Branch Stacking)
+
+This repo uses a fork-based workflow with a local `stack` branch that combines all in-flight feature branches. We don't have push access to the upstream remote, so true Graphite-style chained PRs (where each PR targets the previous branch) aren't possible — all PRs target `main` independently. Dependencies are tracked via `git stack depends` and included as "Depends on #X" in PR descriptions.
+
+### Development workflow
+
+1. **Always develop on the `stack` branch.** This branch merges all in-flight feature branches so you work against the full integrated codebase.
+2. **When a feature is ready for PR**, cherry-pick its commit(s) to a new branch off main:
+   ```bash
+   git stack pick feat/my-feature abc123 def456
+   ```
+   This creates `feat/my-feature` from main, cherry-picks the commits, adds it to the stack, and switches back to stack.
+3. **Declare dependencies** if the feature depends on another unmerged PR:
+   ```bash
+   git stack depends feat/my-feature feat/other-feature
+   ```
+4. **Create PRs** (all target main, with dependency info in the body):
+   ```bash
+   git stack pr                    # all branches
+   git stack pr feat/my-feature    # specific branch
+   ```
+5. **After PRs merge into main**, sync everything:
+   ```bash
+   git stack sync
+   ```
+   This fetches main, drops merged branches, rebases remaining branches onto main, force-pushes them, and rebuilds the stack.
+
+### Key commands
+
+| Command | Description |
+|---------|-------------|
+| `git stack init` | Create stack from main |
+| `git stack add <branch>` | Merge existing branch onto stack |
+| `git stack pick <branch> [commits]` | Cherry-pick commits to new branch, add to stack |
+| `git stack depends <branch> <deps...>` | Set PR dependencies |
+| `git stack drop <branch>` | Remove branch, rebuild stack |
+| `git stack sync` | Rebase all on main, push, rebuild |
+| `git stack rebase` | Drop merged branches, rebuild (no push) |
+| `git stack status` | Show stack with dependency info |
+| `git stack pr` | Create PRs with "Depends on #X" |
+
+### Important notes
+
+- The stack branch is **local only** — never push it
+- Stack state lives in `.git/stack-meta/` (branches list, base, dependencies)
+- When resolving merge conflicts during `git stack add` or `git stack rebuild`, commit the resolution then re-run the command
+- `git stack sync` uses `--force-with-lease` for safety when pushing rebased branches
+- All PRs target main directly since we use a fork without push access to upstream
