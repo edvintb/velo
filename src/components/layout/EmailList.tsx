@@ -70,9 +70,10 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
   const inboxViewMode = useUIStore((s) => s.inboxViewMode);
   const routerCategory = useActiveCategory();
 
-  // In split mode, use the router's category; in unified mode, always use "All"
-  const activeCategory = inboxViewMode === "split" ? routerCategory : "All";
-  const setActiveCategory = inboxViewMode === "split"
+  // In split/simple-split mode, use the router's category; in unified mode, always use "All"
+  const isSplitMode = inboxViewMode === "five-split" || inboxViewMode === "three-split";
+  const activeCategory = isSplitMode ? routerCategory : "All";
+  const setActiveCategory = isSplitMode
     ? (cat: string) => navigateToLabel("inbox", { category: cat })
     : () => {};
 
@@ -504,9 +505,10 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         <div>
           <h2 className="text-sm font-semibold text-text-primary capitalize flex items-center gap-1.5">
             {isSmartFolder && <FolderSearch size={14} className="text-accent shrink-0" />}
+<<<<<<< HEAD
             {isSmartFolder
               ? activeSmartFolder?.name ?? "Smart Folder"
-              : activeLabel === "inbox" && inboxViewMode === "split" && activeCategory !== "All"
+              : activeLabel === "inbox" && isSplitMode && activeCategory !== "All"
                 ? `Inbox — ${activeCategory}`
                 : LABEL_MAP[activeLabel] !== undefined
                   ? activeLabel
@@ -527,12 +529,13 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         </select>
       </div>
 
-      {/* Category tabs (inbox + split mode only) */}
-      {activeLabel === "inbox" && inboxViewMode === "split" && (
+      {/* Category tabs (inbox + split mode only, not in all-accounts view) */}
+      {activeLabel === "inbox" && isSplitMode && !isAllAccounts && (
         <CategoryTabs
           activeCategory={activeCategory}
           onCategoryChange={setActiveCategory}
           unreadCounts={Object.fromEntries(categoryUnreadCounts)}
+          mode={inboxViewMode as "five-split" | "three-split"}
         />
       )}
 
@@ -732,6 +735,8 @@ function EmptyStateForContext({
           Promotions: { title: "No promotions", subtitle: "Marketing and promotional emails appear here" },
           Social: { title: "No social emails", subtitle: "Social network notifications appear here" },
           Newsletters: { title: "No newsletters", subtitle: "Newsletters and subscriptions appear here" },
+          Feeds: { title: "No feeds", subtitle: "Newsletters, promotions, and subscriptions appear here" },
+          Notifications: { title: "No notifications", subtitle: "Transactional and automated emails appear here" },
         };
         const msg = categoryMessages[activeCategory];
         if (msg) return <EmptyState illustration={InboxClearIllustration} title={msg.title} subtitle={msg.subtitle} />;

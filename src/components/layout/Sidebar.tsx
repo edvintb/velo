@@ -35,6 +35,7 @@ import {
   Bell,
   Users,
   Newspaper,
+  Rss,
   Search,
   MailOpen,
   Paperclip,
@@ -65,12 +66,18 @@ export const ALL_NAV_ITEMS: { id: string; label: string; icon: LucideIcon }[] = 
   { id: "labels", label: "Labels", icon: Tag },
 ];
 
-const CATEGORY_ITEMS: { id: string; label: string; icon: LucideIcon }[] = [
+const FIVE_SPLIT_CATEGORY_ITEMS: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "Primary", label: "Primary", icon: Inbox },
   { id: "Updates", label: "Updates", icon: Bell },
   { id: "Promotions", label: "Promotions", icon: Tag },
   { id: "Social", label: "Social", icon: Users },
   { id: "Newsletters", label: "Newsletters", icon: Newspaper },
+];
+
+const THREE_SPLIT_CATEGORY_ITEMS: { id: string; label: string; icon: LucideIcon }[] = [
+  { id: "Primary", label: "Primary", icon: Inbox },
+  { id: "Feeds", label: "Feeds", icon: Rss },
+  { id: "Notifications", label: "Notifications", icon: Bell },
 ];
 
 function DroppableNavItem({
@@ -370,7 +377,7 @@ export function Sidebar({ collapsed, onAddAccount }: SidebarProps) {
                 isActive={isInbox ? (activeLabel === "inbox" && (inboxViewMode === "unified" || activeCategory === "Primary")) : activeLabel === item.id}
                 collapsed={collapsed}
                 onClick={() => {
-                  if (isInbox && inboxViewMode === "split") {
+                  if (isInbox && (inboxViewMode === "five-split" || inboxViewMode === "three-split")) {
                     navigateToLabel(item.id, { category: "Primary" });
                   } else {
                     navigateToLabel(item.id);
@@ -400,18 +407,18 @@ export function Sidebar({ collapsed, onAddAccount }: SidebarProps) {
                         tabIndex={0}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setInboxViewMode(inboxViewMode === "split" ? "unified" : "split");
+                          setInboxViewMode(inboxViewMode === "unified" ? "five-split" : "unified");
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
                             e.stopPropagation();
-                            setInboxViewMode(inboxViewMode === "split" ? "unified" : "split");
+                            setInboxViewMode(inboxViewMode === "unified" ? "five-split" : "unified");
                           }
                         }}
-                        title={inboxViewMode === "split" ? "Switch to unified inbox" : "Switch to split inbox"}
+                        title={inboxViewMode !== "unified" ? "Switch to unified inbox" : "Switch to split inbox"}
                         className={`p-1 rounded transition-colors ${
-                          inboxViewMode === "split"
+                          inboxViewMode !== "unified"
                             ? "text-accent hover:bg-accent/10"
                             : "text-sidebar-text/40 hover:text-sidebar-text hover:bg-sidebar-hover"
                         }`}
@@ -423,9 +430,9 @@ export function Sidebar({ collapsed, onAddAccount }: SidebarProps) {
                 )}
               </DroppableNavItem>
               {/* Category sub-items when split mode is active */}
-              {isInbox && inboxViewMode === "split" && !collapsed && (
+              {isInbox && (inboxViewMode === "five-split" || inboxViewMode === "three-split") && !collapsed && (
                 <div>
-                  {CATEGORY_ITEMS.map((cat) => {
+                  {(inboxViewMode === "three-split" ? THREE_SPLIT_CATEGORY_ITEMS : FIVE_SPLIT_CATEGORY_ITEMS).map((cat) => {
                     const CatIcon = cat.icon;
                     const isCatActive = activeLabel === "inbox" && activeCategory === cat.id;
                     return (

@@ -1,7 +1,8 @@
 import { getUncategorizedInboxThreadIds, setThreadCategory } from "@/services/db/threadCategories";
 import { getThreadLabelIds } from "@/services/db/threads";
 import { getMessagesForThread } from "@/services/db/messages";
-import { categorizeByRules } from "./ruleEngine";
+import { categorizeByRules, categorizeByThreeSplitRules } from "./ruleEngine";
+import { getSetting } from "@/services/db/settings";
 
 /**
  * Backfill uncategorized inbox threads with rule-based categorization.
@@ -15,6 +16,9 @@ export async function backfillUncategorizedThreads(
   accountId: string,
   batchSize = 50,
 ): Promise<number> {
+  const viewMode = await getSetting("inbox_view_mode");
+  const categorizeFn = viewMode === "three-split" ? categorizeByThreeSplitRules : categorizeByRules;
+
   let totalCategorized = 0;
   let batch: Awaited<ReturnType<typeof getUncategorizedInboxThreadIds>>;
 
@@ -28,7 +32,7 @@ export async function backfillUncategorizedThreads(
       ]);
       const lastMessage = messages[messages.length - 1];
 
-      const category = categorizeByRules({
+      const category = categorizeFn({
         labelIds,
         fromAddress: lastMessage?.from_address ?? thread.fromAddress ?? null,
         listUnsubscribe: lastMessage?.list_unsubscribe ?? null,

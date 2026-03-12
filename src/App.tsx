@@ -267,7 +267,7 @@ export default function App() {
 
         // Restore inbox view mode
         const savedViewMode = await getSetting("inbox_view_mode");
-        if (savedViewMode === "unified" || savedViewMode === "split") {
+        if (savedViewMode === "unified" || savedViewMode === "five-split" || savedViewMode === "three-split") {
           ui.setInboxViewMode(savedViewMode);
         }
 

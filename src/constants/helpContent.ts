@@ -727,11 +727,11 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         title: "Split inbox",
         summary: "Divide your inbox into category tabs.",
         description:
-          "Split inbox organizes your inbox into five category tabs: Primary, Updates, Promotions, Social, and Newsletters. Each tab shows only the threads belonging to that category, letting you focus on what matters. New emails are automatically categorized using AI (or rule-based fallback). Toggle split inbox from the icon next to Inbox in the sidebar. When split mode is off, all categories are shown together.",
+          "Split inbox offers two modes. 5-Split organizes into five tabs: Primary, Updates, Promotions, Social, and Newsletters — uses Gmail category labels plus sender heuristics. 3-Split uses purely heuristic rules (sender prefixes, List-Unsubscribe headers, domain matching) to sort into three tabs: Primary, Feeds, and Notifications. Choose your mode in Settings > Inbox view mode.",
         tips: [
-          { text: "Toggle split inbox from the Columns icon next to Inbox in the sidebar." },
-          { text: "Categories: Primary, Updates, Promotions, Social, Newsletters." },
-          { text: "AI auto-categorizes new emails during sync." },
+          { text: "5-Split: Primary, Updates, Promotions, Social, Newsletters (uses Gmail labels + heuristics)." },
+          { text: "3-Split: Primary, Feeds, Notifications (heuristics only, no Gmail labels)." },
+          { text: "AI auto-categorizes new emails during sync (optional)." },
           { text: "Rule-based categorization runs first, AI fills in the rest." },
           { text: "You can auto-archive non-Primary categories in Settings." },
         ],
@@ -1282,7 +1282,7 @@ export const CONTEXTUAL_TIPS: Record<string, ContextualTip> = {
   },
   "split-inbox": {
     title: "Split inbox",
-    body: "Divide your inbox into categories (Primary, Updates, Promotions, Social, Newsletters) so you can focus on what matters most.",
+    body: "Divide your inbox into categories. 5-Split uses Gmail labels + heuristics; 3-Split uses heuristics only (Primary, Feeds, Notifications).",
     helpTopic: "productivity",
   },
   "undo-send": {

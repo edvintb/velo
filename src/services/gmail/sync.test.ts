@@ -30,6 +30,7 @@ vi.mock("../db/notificationVips", () => ({
 }));
 vi.mock("@/services/categorization/ruleEngine", () => ({
   categorizeByRules: vi.fn().mockReturnValue("Primary"),
+  categorizeByThreeSplitRules: vi.fn().mockReturnValue("Primary"),
 }));
 vi.mock("../filters/filterEngine", () => ({
   applyFiltersToMessages: vi.fn(),

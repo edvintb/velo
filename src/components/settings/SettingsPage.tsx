@@ -497,12 +497,13 @@ export function SettingsPage() {
                       <select
                         value={inboxViewMode}
                         onChange={(e) => {
-                          setInboxViewMode(e.target.value as "unified" | "split");
+                          setInboxViewMode(e.target.value as "unified" | "five-split" | "three-split");
                         }}
                         className="w-48 bg-bg-tertiary text-text-primary text-sm px-3 py-1.5 rounded-md border border-border-primary focus:border-accent outline-none"
                       >
                         <option value="unified">Unified</option>
-                        <option value="split">Split (Categories)</option>
+                        <option value="five-split">5-Split (Primary, Updates, Promotions, Social, Newsletters)</option>
+                        <option value="three-split">3-Split (Primary, Feeds, Notifications)</option>
                       </select>
                     </SettingRow>
                     <ToggleRow
@@ -1358,9 +1359,9 @@ export function SettingsPage() {
                     )}
                   </Section>
 
-                  <Section title="Categories">
+                  <Section title="5-Split Categories">
                     <p className="text-xs text-text-tertiary mb-1">
-                      Incoming emails are automatically sorted using rule-based heuristics (Gmail labels, sender domain, headers). When AI is enabled, it refines results for better accuracy.
+                      Incoming emails are sorted primarily using Gmail's category labels, with additional rules based on sender domain, address prefixes, and List-Unsubscribe headers as fallbacks. When AI is enabled, it refines results for better accuracy.
                     </p>
                     <p className="text-xs text-text-tertiary mb-3">
                       Enable auto-archive to skip the inbox for specific categories.

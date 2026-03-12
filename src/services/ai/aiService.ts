@@ -14,6 +14,7 @@ import {
   ASK_INBOX_PROMPT,
   SMART_LABEL_PROMPT,
   EXTRACT_TASK_PROMPT,
+  CATEGORIZE_THREE_SPLIT_PROMPT,
 } from "./prompts";
 
 async function callAi(systemPrompt: string, userContent: string): Promise<string> {
@@ -153,6 +154,7 @@ export async function askInbox(
 }
 
 const VALID_CATEGORIES = new Set(["Primary", "Updates", "Promotions", "Social", "Newsletters"]);
+const VALID_THREE_SPLIT_CATEGORIES = new Set(["Primary", "Feeds", "Notifications"]);
 
 export async function categorizeThreads(
   threads: { id: string; subject: string; snippet: string; fromAddress: string }[],
@@ -175,6 +177,33 @@ export async function categorizeThreads(
     const category = trimmed.slice(colonIdx + 1).trim();
     // Validate: only accept known thread IDs and valid categories
     if (threadId && category && validThreadIds.has(threadId) && VALID_CATEGORIES.has(category)) {
+      categories.set(threadId, category);
+    }
+  }
+
+  return categories;
+}
+
+export async function categorizeThreadsThreeSplit(
+  threads: { id: string; subject: string; snippet: string; fromAddress: string }[],
+): Promise<Map<string, string>> {
+  const input = threads
+    .map((t) => `<email_content>ID:${t.id} | From:${t.fromAddress} | Subject:${t.subject} | ${t.snippet}</email_content>`)
+    .join("\n");
+
+  const validThreadIds = new Set(threads.map((t) => t.id));
+
+  const result = await callAi(CATEGORIZE_THREE_SPLIT_PROMPT, input);
+  const categories = new Map<string, string>();
+
+  for (const line of result.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const colonIdx = trimmed.indexOf(":");
+    if (colonIdx === -1) continue;
+    const threadId = trimmed.slice(0, colonIdx).trim();
+    const category = trimmed.slice(colonIdx + 1).trim();
+    if (threadId && category && validThreadIds.has(threadId) && VALID_THREE_SPLIT_CATEGORIES.has(category)) {
       categories.set(threadId, category);
     }
   }

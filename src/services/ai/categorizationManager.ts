@@ -1,5 +1,5 @@
 import { isAiAvailable } from "./providerManager";
-import { categorizeThreads } from "./aiService";
+import { categorizeThreads, categorizeThreadsThreeSplit } from "./aiService";
 import { getSetting } from "@/services/db/settings";
 import {
   getRecentRuleCategorizedThreadIds,
@@ -19,8 +19,12 @@ export async function categorizeNewThreads(accountId: string): Promise<void> {
     const threads = await getRecentRuleCategorizedThreadIds(accountId, 20);
     if (threads.length === 0) return;
 
+    // Pick AI categorizer based on inbox view mode
+    const viewMode = await getSetting("inbox_view_mode");
+    const aiCategorize = viewMode === "three-split" ? categorizeThreadsThreeSplit : categorizeThreads;
+
     // Categorize via AI (refines rule-based results)
-    const categories = await categorizeThreads(
+    const categories = await aiCategorize(
       threads.map((t) => ({
         id: t.id,
         subject: t.subject ?? "",
