@@ -522,6 +522,12 @@ export function spamThread(
   messageIds: string[],
   isSpam: boolean,
 ): Promise<ActionResult> {
+  if (isSpam) {
+    const thread = useThreadStore.getState().threadMap.get(threadKey({ accountId, id: threadId }));
+    window.dispatchEvent(new CustomEvent("velo-always-spam", {
+      detail: { senderAddress: thread?.fromAddress ?? null, accountId },
+    }));
+  }
   return executeEmailAction(accountId, {
     type: "spam",
     threadId,

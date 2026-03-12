@@ -14,6 +14,7 @@ export interface FilterActions {
   star?: boolean;
   markRead?: boolean;
   trash?: boolean;
+  spam?: boolean;
 }
 
 export interface DbFilterRule {

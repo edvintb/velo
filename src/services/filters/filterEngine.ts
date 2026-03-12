@@ -65,6 +65,11 @@ export function computeFilterActions(actions: FilterActions): FilterResult {
     removeLabelIds.push("INBOX");
   }
 
+  if (actions.spam) {
+    addLabelIds.push("SPAM");
+    removeLabelIds.push("INBOX");
+  }
+
   if (actions.star) {
     addLabelIds.push("STARRED");
   }
