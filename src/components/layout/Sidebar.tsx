@@ -375,7 +375,7 @@ export function Sidebar({ collapsed, onAddAccount }: SidebarProps) {
             <div key={item.id}>
               <DroppableNavItem
                 id={item.id}
-                isActive={isInbox ? (activeLabel === "inbox" && (inboxViewMode === "unified" || activeCategory === "Primary")) : activeLabel === item.id}
+                isActive={isInbox ? (activeLabel === "inbox" && inboxViewMode === "unified") : activeLabel === item.id}
                 collapsed={collapsed}
                 onClick={() => {
                   if (isInbox && (inboxViewMode === "five-split" || inboxViewMode === "three-split")) {
