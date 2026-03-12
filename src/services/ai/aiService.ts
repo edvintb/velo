@@ -9,7 +9,7 @@ import {
   IMPROVE_PROMPT,
   SHORTEN_PROMPT,
   FORMALIZE_PROMPT,
-  CATEGORIZE_PROMPT,
+  CATEGORIZE_FIVE_SPLIT_PROMPT,
   SMART_REPLY_PROMPT,
   ASK_INBOX_PROMPT,
   SMART_LABEL_PROMPT,
@@ -153,10 +153,10 @@ export async function askInbox(
   return callAi(ASK_INBOX_PROMPT, userContent);
 }
 
-const VALID_CATEGORIES = new Set(["Primary", "Updates", "Promotions", "Social", "Newsletters"]);
+const VALID_FIVE_SPLIT_CATEGORIES = new Set(["Primary", "Updates", "Promotions", "Social", "Newsletters"]);
 const VALID_THREE_SPLIT_CATEGORIES = new Set(["Primary", "Feeds", "Notifications"]);
 
-export async function categorizeThreads(
+export async function categorizeThreadsFiveSplit(
   threads: { id: string; subject: string; snippet: string; fromAddress: string }[],
 ): Promise<Map<string, string>> {
   const input = threads
@@ -165,7 +165,7 @@ export async function categorizeThreads(
 
   const validThreadIds = new Set(threads.map((t) => t.id));
 
-  const result = await callAi(CATEGORIZE_PROMPT, input);
+  const result = await callAi(CATEGORIZE_FIVE_SPLIT_PROMPT, input);
   const categories = new Map<string, string>();
 
   for (const line of result.split("\n")) {
@@ -176,7 +176,7 @@ export async function categorizeThreads(
     const threadId = trimmed.slice(0, colonIdx).trim();
     const category = trimmed.slice(colonIdx + 1).trim();
     // Validate: only accept known thread IDs and valid categories
-    if (threadId && category && validThreadIds.has(threadId) && VALID_CATEGORIES.has(category)) {
+    if (threadId && category && validThreadIds.has(threadId) && VALID_FIVE_SPLIT_CATEGORIES.has(category)) {
       categories.set(threadId, category);
     }
   }
