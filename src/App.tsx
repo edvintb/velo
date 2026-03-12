@@ -67,6 +67,8 @@ import { getIncompleteTaskCount } from "./services/db/tasks";
 import { useTaskStore } from "./stores/taskStore";
 import { ContextMenuPortal } from "./components/ui/ContextMenuPortal";
 import { MoveToFolderDialog } from "./components/email/MoveToFolderDialog";
+import { MoveToCategoryDialog } from "./components/email/MoveToCategoryDialog";
+import { AlwaysSpamDialog } from "./components/email/AlwaysSpamDialog";
 import { OfflineBanner } from "./components/ui/OfflineBanner";
 import { UpdateToast } from "./components/ui/UpdateToast";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
@@ -106,6 +108,8 @@ export default function App() {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [showAskInbox, setShowAskInbox] = useState(false);
   const [moveToFolderState, setMoveToFolderState] = useState<{ open: boolean; threadIds: string[] }>({ open: false, threadIds: [] });
+  const [categoryPickerState, setMoveToCategoryDialogState] = useState<{ open: boolean; threadIds: string[] }>({ open: false, threadIds: [] });
+  const [alwaysSpamState, setAlwaysSpamState] = useState<{ open: boolean; senderAddress: string | null; accountId: string | null }>({ open: false, senderAddress: null, accountId: null });
   const deepLinkCleanupRef = useRef<(() => void) | undefined>(undefined);
 
   // Sync bridge: router state → Zustand stores (temporary)
@@ -156,15 +160,27 @@ export default function App() {
       const detail = (e as CustomEvent<{ threadIds: string[] }>).detail;
       setMoveToFolderState({ open: true, threadIds: detail.threadIds });
     };
+    const handleCategorize = (e: Event) => {
+      const detail = (e as CustomEvent<{ threadIds: string[] }>).detail;
+      setMoveToCategoryDialogState({ open: true, threadIds: detail.threadIds });
+    };
+    const handleAlwaysSpam = (e: Event) => {
+      const detail = (e as CustomEvent<{ senderAddress: string | null; accountId: string }>).detail;
+      setAlwaysSpamState({ open: true, ...detail });
+    };
     window.addEventListener("velo-toggle-command-palette", togglePalette);
     window.addEventListener("velo-toggle-shortcuts-help", toggleHelp);
     window.addEventListener("velo-toggle-ask-inbox", toggleAskInbox);
     window.addEventListener("velo-move-to-folder", handleMoveToFolder);
+    window.addEventListener("velo-categorize", handleCategorize);
+    window.addEventListener("velo-always-spam", handleAlwaysSpam);
     return () => {
       window.removeEventListener("velo-toggle-command-palette", togglePalette);
       window.removeEventListener("velo-toggle-shortcuts-help", toggleHelp);
       window.removeEventListener("velo-toggle-ask-inbox", toggleAskInbox);
       window.removeEventListener("velo-move-to-folder", handleMoveToFolder);
+      window.removeEventListener("velo-categorize", handleCategorize);
+      window.removeEventListener("velo-always-spam", handleAlwaysSpam);
     };
   }, []);
 
@@ -613,6 +629,17 @@ export default function App() {
         isOpen={moveToFolderState.open}
         threadIds={moveToFolderState.threadIds}
         onClose={() => setMoveToFolderState({ open: false, threadIds: [] })}
+      />
+      <MoveToCategoryDialog
+        isOpen={categoryPickerState.open}
+        threadIds={categoryPickerState.threadIds}
+        onClose={() => setMoveToCategoryDialogState({ open: false, threadIds: [] })}
+      />
+      <AlwaysSpamDialog
+        isOpen={alwaysSpamState.open}
+        senderAddress={alwaysSpamState.senderAddress}
+        accountId={alwaysSpamState.accountId}
+        onClose={() => setAlwaysSpamState({ open: false, senderAddress: null, accountId: null })}
       />
     </div>
   );

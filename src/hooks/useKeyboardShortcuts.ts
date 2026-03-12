@@ -545,10 +545,22 @@ async function executeAction(actionId: string): Promise<void> {
     case "action.moveToFolder": {
       const multiMoveKeys = useThreadStore.getState().selectedThreadIds;
       const moveThreadIds = multiMoveKeys.size > 0
-        ? [...multiMoveKeys].map((k) => parseThreadKey(k).threadId)
-        : selectedKey ? [parseThreadKey(selectedKey).threadId] : [];
+        ? [...multiMoveKeys]
+        : selectedKey ? [selectedKey] : [];
       if (moveThreadIds.length > 0) {
         window.dispatchEvent(new CustomEvent("velo-move-to-folder", { detail: { threadIds: moveThreadIds } }));
+      }
+      break;
+    }
+    case "action.categorize": {
+      const catMode = useUIStore.getState().inboxViewMode;
+      if (catMode === "unified") break;
+      const multiCatKeys = useThreadStore.getState().selectedThreadIds;
+      const catThreadIds = multiCatKeys.size > 0
+        ? [...multiCatKeys]
+        : selectedKey ? [selectedKey] : [];
+      if (catThreadIds.length > 0) {
+        window.dispatchEvent(new CustomEvent("velo-categorize", { detail: { threadIds: catThreadIds } }));
       }
       break;
     }
