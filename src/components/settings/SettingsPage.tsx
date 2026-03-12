@@ -35,6 +35,8 @@ import {
   ChevronUp,
   ChevronDown,
   RotateCcw,
+  Plus,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { SignatureEditor } from "./SignatureEditor";
@@ -494,17 +496,20 @@ export function SettingsPage() {
                       </div>
                     </SettingRow>
                     <SettingRow label="Inbox view mode">
-                      <select
-                        value={inboxViewMode}
-                        onChange={(e) => {
-                          setInboxViewMode(e.target.value as "unified" | "five-split" | "three-split");
-                        }}
-                        className="w-48 bg-bg-tertiary text-text-primary text-sm px-3 py-1.5 rounded-md border border-border-primary focus:border-accent outline-none"
-                      >
-                        <option value="unified">Unified</option>
-                        <option value="five-split">5-Split (Primary, Updates, Promotions, Social, Newsletters)</option>
-                        <option value="three-split">3-Split (Primary, Feeds, Notifications)</option>
-                      </select>
+                      <InboxViewModeDropdown value={inboxViewMode} onChange={async (mode) => {
+                        setInboxViewMode(mode);
+                        // Backfill any threads missing categories for the new mode
+                        try {
+                          const activeAccounts = useAccountStore.getState().accounts.filter((a) => a.isActive);
+                          const { backfillUncategorizedThreads } = await import("@/services/categorization/backfillService");
+                          for (const a of activeAccounts) {
+                            await backfillUncategorizedThreads(a.id);
+                          }
+                          window.dispatchEvent(new Event("velo-sync-done"));
+                        } catch (err) {
+                          console.error("Backfill error:", err);
+                        }
+                      }} />
                     </SettingRow>
                     <ToggleRow
                       label="Reduce motion"
@@ -1383,6 +1388,13 @@ export function SettingsPage() {
                     ))}
                   </Section>
 
+                  <Section title="3-Split Rules">
+                    <p className="text-xs text-text-tertiary mb-3">
+                      Configure regex patterns that match sender addresses to sort emails into Feeds or Notifications. Everything else goes to Primary. Emails with a List-Unsubscribe header are automatically classified as Feeds.
+                    </p>
+                    <ThreeSplitSettings />
+                  </Section>
+
                   <Section title="Bundling & Delivery Schedules">
                     <p className="text-xs text-text-tertiary mb-3">
                       Collapse categories into a single row in the inbox. Optionally set a delivery schedule to batch emails.
@@ -2168,6 +2180,199 @@ function SettingRow({
     <div className="flex items-center justify-between">
       <label className="text-sm text-text-secondary">{label}</label>
       {children}
+    </div>
+  );
+}
+
+const INBOX_VIEW_OPTIONS: { value: "unified" | "five-split" | "three-split"; short: string; long: string }[] = [
+  { value: "unified", short: "Unified", long: "Unified" },
+  { value: "five-split", short: "5-Split", long: "5-Split (Primary, Updates, Promotions, Social, Newsletters)" },
+  { value: "three-split", short: "3-Split", long: "3-Split (Primary, Feeds, Notifications)" },
+];
+
+function InboxViewModeDropdown({ value, onChange }: { value: string; onChange: (v: "unified" | "five-split" | "three-split") => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const current = INBOX_VIEW_OPTIONS.find((o) => o.value === value) ?? INBOX_VIEW_OPTIONS[0]!;
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-48 bg-bg-tertiary text-text-primary text-sm px-3 py-1.5 rounded-md border border-border-primary focus:border-accent outline-none text-left flex items-center justify-between"
+      >
+        <span>{current.short}</span>
+        <ChevronDown size={14} className={`text-text-tertiary transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-bg-secondary border border-border-primary rounded-md shadow-lg z-50 min-w-max">
+          {INBOX_VIEW_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className={`block w-full text-left text-sm px-3 py-1.5 hover:bg-bg-hover ${opt.value === value ? "text-accent font-medium" : "text-text-primary"}`}
+            >
+              {opt.long}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ThreeSplitSettings() {
+  const [feedPatterns, setFeedPatterns] = useState<string[]>([]);
+  const [notificationPatterns, setNotificationPatterns] = useState<string[]>([]);
+  const [newFeed, setNewFeed] = useState("");
+  const [newNotif, setNewNotif] = useState("");
+  const [feedError, setFeedError] = useState<string | null>(null);
+  const [notifError, setNotifError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      // loadThreeSplitConfig seeds defaults into DB on first call
+      const { loadThreeSplitConfig } = await import("@/services/categorization/threeSplitConfig");
+      await loadThreeSplitConfig();
+      const feedRaw = await getSetting("three_split_feed_patterns");
+      const notifRaw = await getSetting("three_split_notification_patterns");
+      setFeedPatterns(feedRaw ? JSON.parse(feedRaw) : []);
+      setNotificationPatterns(notifRaw ? JSON.parse(notifRaw) : []);
+      setLoaded(true);
+    }
+    load();
+  }, []);
+
+  const validateRegex = (pattern: string): string | null => {
+    try {
+      new RegExp(pattern, "i");
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : "Invalid regex";
+    }
+  };
+
+  const saveFeedPatterns = async (patterns: string[]) => {
+    setFeedPatterns(patterns);
+    await setSetting("three_split_feed_patterns", JSON.stringify(patterns));
+  };
+
+  const saveNotifPatterns = async (patterns: string[]) => {
+    setNotificationPatterns(patterns);
+    await setSetting("three_split_notification_patterns", JSON.stringify(patterns));
+  };
+
+  const addFeedPattern = async () => {
+    const trimmed = newFeed.trim();
+    if (!trimmed) return;
+    const err = validateRegex(trimmed);
+    if (err) { setFeedError(err); return; }
+    setFeedError(null);
+    setNewFeed("");
+    await saveFeedPatterns([...feedPatterns, trimmed]);
+  };
+
+  const addNotifPattern = async () => {
+    const trimmed = newNotif.trim();
+    if (!trimmed) return;
+    const err = validateRegex(trimmed);
+    if (err) { setNotifError(err); return; }
+    setNotifError(null);
+    setNewNotif("");
+    await saveNotifPatterns([...notificationPatterns, trimmed]);
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="text-sm font-medium text-text-primary block mb-1">Feed patterns</label>
+        <p className="text-xs text-text-tertiary mb-2">
+          Regex patterns matched against sender address. Matching emails go to Feeds.
+        </p>
+        <div className="space-y-1.5">
+          {feedPatterns.map((p, i) => (
+            <div key={i} className="flex items-center gap-2 group">
+              <code className="flex-1 text-xs bg-bg-tertiary px-2 py-1 rounded border border-border-primary font-mono truncate">
+                {p}
+              </code>
+              <button
+                onClick={() => saveFeedPatterns(feedPatterns.filter((_, j) => j !== i))}
+                className="opacity-0 group-hover:opacity-100 text-text-tertiary hover:text-danger transition-opacity p-0.5"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 mt-2">
+          <input
+            type="text"
+            value={newFeed}
+            onChange={(e) => { setNewFeed(e.target.value); setFeedError(null); }}
+            onKeyDown={(e) => e.key === "Enter" && addFeedPattern()}
+            placeholder="e.g. @economist\.com$"
+            className="flex-1 bg-bg-tertiary text-text-primary text-xs px-2.5 py-1.5 rounded border border-border-primary focus:border-accent outline-none font-mono"
+          />
+          <button
+            onClick={addFeedPattern}
+            className="text-xs text-accent hover:text-accent-hover flex items-center gap-1 px-2"
+          >
+            <Plus size={14} /> Add
+          </button>
+        </div>
+        {feedError && <p className="text-xs text-danger mt-1">{feedError}</p>}
+      </div>
+
+      <div>
+        <label className="text-sm font-medium text-text-primary block mb-1">Notification patterns</label>
+        <p className="text-xs text-text-tertiary mb-2">
+          Regex patterns matched against sender address. Matching emails go to Notifications.
+        </p>
+        <div className="space-y-1.5">
+          {notificationPatterns.map((p, i) => (
+            <div key={i} className="flex items-center gap-2 group">
+              <code className="flex-1 text-xs bg-bg-tertiary px-2 py-1 rounded border border-border-primary font-mono truncate">
+                {p}
+              </code>
+              <button
+                onClick={() => saveNotifPatterns(notificationPatterns.filter((_, j) => j !== i))}
+                className="opacity-0 group-hover:opacity-100 text-text-tertiary hover:text-danger transition-opacity p-0.5"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 mt-2">
+          <input
+            type="text"
+            value={newNotif}
+            onChange={(e) => { setNewNotif(e.target.value); setNotifError(null); }}
+            onKeyDown={(e) => e.key === "Enter" && addNotifPattern()}
+            placeholder="e.g. ^noreply@"
+            className="flex-1 bg-bg-tertiary text-text-primary text-xs px-2.5 py-1.5 rounded border border-border-primary focus:border-accent outline-none font-mono"
+          />
+          <button
+            onClick={addNotifPattern}
+            className="text-xs text-accent hover:text-accent-hover flex items-center gap-1 px-2"
+          >
+            <Plus size={14} /> Add
+          </button>
+        </div>
+        {notifError && <p className="text-xs text-danger mt-1">{notifError}</p>}
+      </div>
     </div>
   );
 }

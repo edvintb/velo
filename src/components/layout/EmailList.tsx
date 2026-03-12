@@ -10,7 +10,7 @@ import { useUIStore } from "@/stores/uiStore";
 import { useActiveLabel, useSelectedThreadId, useActiveCategory } from "@/hooks/useRouteNavigation";
 import { navigateToThread, navigateToLabel } from "@/router/navigate";
 import { getThreadsForAccount, getThreadsForCategory, getThreadsForAllAccounts, getThreadsForAllAccountsCategory, getThreadLabelIds, deleteThread as deleteThreadFromDb } from "@/services/db/threads";
-import { getCategoriesForThreads, getCategoryUnreadCounts } from "@/services/db/threadCategories";
+import { getCategoriesForThreads, getCategoryUnreadCounts, type CategoryMode } from "@/services/db/threadCategories";
 import { getActiveFollowUpThreadIds } from "@/services/db/followUpReminders";
 import { getBundleRules, getHeldThreadIds, getBundleSummaries, type DbBundleRule } from "@/services/db/bundleRules";
 import { getGmailClient } from "@/services/gmail/tokenManager";
@@ -74,6 +74,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
 
   // In split/simple-split mode, use the router's category; in unified mode, always use "All"
   const isSplitMode = inboxViewMode === "five-split" || inboxViewMode === "three-split";
+  const categoryMode: CategoryMode = inboxViewMode === "three-split" ? "three-split" : "five-split";
   const activeCategory = isSplitMode ? routerCategory : "All";
   const setActiveCategory = isSplitMode
     ? (cat: string) => navigateToLabel("inbox", { category: cat })
@@ -295,7 +296,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         // Multi-account queries
         let dbThreads;
         if (activeLabel === "inbox" && activeCategory !== "All") {
-          dbThreads = await getThreadsForAllAccountsCategory(activeCategory, PAGE_SIZE, 0);
+          dbThreads = await getThreadsForAllAccountsCategory(activeCategory, PAGE_SIZE, 0, categoryMode);
         } else {
           const gmailLabelId = LABEL_MAP[activeLabel] ?? activeLabel;
           dbThreads = await getThreadsForAllAccounts(
@@ -311,7 +312,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         let dbThreads;
         // Server-side category filtering for inbox
         if (activeLabel === "inbox" && activeCategory !== "All") {
-          dbThreads = await getThreadsForCategory(activeAccountId, activeCategory, PAGE_SIZE, 0);
+          dbThreads = await getThreadsForCategory(activeAccountId, activeCategory, PAGE_SIZE, 0, categoryMode);
         } else {
           const gmailLabelId = LABEL_MAP[activeLabel] ?? activeLabel;
           dbThreads = await getThreadsForAccount(
@@ -331,7 +332,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
     } finally {
       setLoading(false);
     }
-  }, [activeAccountId, activeLabel, activeCategory, isSmartFolder, activeSmartFolder, isAllAccounts, setThreads, setLoading, mapDbThreads, clearSearch]);
+  }, [activeAccountId, activeLabel, activeCategory, categoryMode, isSmartFolder, activeSmartFolder, isAllAccounts, setThreads, setLoading, mapDbThreads, clearSearch]);
 
   const loadMore = useCallback(async () => {
     if (!activeAccountId || loadingMore || !hasMore) return;
@@ -342,7 +343,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
       let dbThreads;
       if (isAllAccounts) {
         if (activeLabel === "inbox" && activeCategory !== "All") {
-          dbThreads = await getThreadsForAllAccountsCategory(activeCategory, PAGE_SIZE, offset);
+          dbThreads = await getThreadsForAllAccountsCategory(activeCategory, PAGE_SIZE, offset, categoryMode);
         } else {
           const gmailLabelId = LABEL_MAP[activeLabel] ?? activeLabel;
           dbThreads = await getThreadsForAllAccounts(
@@ -353,7 +354,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         }
       } else {
         if (activeLabel === "inbox" && activeCategory !== "All") {
-          dbThreads = await getThreadsForCategory(activeAccountId, activeCategory, PAGE_SIZE, offset);
+          dbThreads = await getThreadsForCategory(activeAccountId, activeCategory, PAGE_SIZE, offset, categoryMode);
         } else {
           const gmailLabelId = LABEL_MAP[activeLabel] ?? activeLabel;
           dbThreads = await getThreadsForAccount(
@@ -425,7 +426,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         // Categories (only for inbox "All" tab with threads)
         if (isInbox && isAllCategory && threadIds.length > 0) {
           promises.push(
-            getCategoriesForThreads(activeAccountId, threadIds).then((result) => {
+            getCategoriesForThreads(activeAccountId, threadIds, categoryMode).then((result) => {
               if (!cancelled) {
                 // Convert to composite-keyed map
                 const compositeMap = new Map<string, string>();
@@ -443,7 +444,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         // Unread counts (only for inbox)
         if (isInbox) {
           promises.push(
-            getCategoryUnreadCounts(activeAccountId).then((result) => {
+            getCategoryUnreadCounts(activeAccountId, categoryMode).then((result) => {
               if (!cancelled) setCategoryUnreadCounts(result);
             }),
           );
@@ -517,7 +518,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
 
     loadMetadata();
     return () => { cancelled = true; };
-  }, [threadKeyStr, activeLabel, activeCategory, activeAccountId, isAllAccounts]);
+  }, [threadKeyStr, activeLabel, activeCategory, activeAccountId, isAllAccounts, categoryMode]);
 
   // Auto-scroll selected thread into view (triggered by keyboard navigation)
   useEffect(() => {
