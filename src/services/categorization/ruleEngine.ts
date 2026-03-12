@@ -6,17 +6,6 @@ export interface CategorizationInput {
   listUnsubscribe: string | null;
 }
 
-/** Exact sender addresses or domains forced to a specific category. Checked first. */
-const SENDER_OVERRIDES: Map<string, FiveSplitCategory> = new Map([
-  // Newsletters miscategorized as Updates
-  ["economist.com", "Newsletters"],
-  ["e.economist.com", "Newsletters"],
-  ["a16z.com", "Newsletters"],
-  ["future.a16z.com", "Newsletters"],
-  ["bloomberg.com", "Newsletters"],       // Matt Levine / Money Stuff
-  ["mail.bloombergbusiness.com", "Newsletters"],
-]);
-
 const SOCIAL_DOMAINS = new Set([
   "facebookmail.com",
   "facebook.com",
@@ -103,19 +92,11 @@ function getLocalPart(email: string): string | null {
  *
  * Priority layers:
  * 1. Gmail CATEGORY_* labels
- * 2. Domain heuristics (social domains, newsletter platforms, promo prefixes)
+ * 2. Domain heuristics (social domains, newsletter platforms, promo prefixes, update prefixes)
  * 3. List-Unsubscribe header presence
  * 4. Default → Primary
  */
-export function categorizeByRules(input: CategorizationInput): FiveSplitCategory {
-  // Layer 0: Sender-specific overrides (highest priority)
-  if (input.fromAddress) {
-    const domain = getDomain(input.fromAddress);
-    const addr = input.fromAddress.toLowerCase();
-    if (SENDER_OVERRIDES.has(addr)) return SENDER_OVERRIDES.get(addr)!;
-    if (domain && SENDER_OVERRIDES.has(domain)) return SENDER_OVERRIDES.get(domain)!;
-  }
-
+export function categorizeByFiveSplitRules(input: CategorizationInput): FiveSplitCategory {
   // Layer 1: Gmail category labels
   for (const label of input.labelIds) {
     switch (label) {
@@ -172,61 +153,77 @@ export function categorizeByRules(input: CategorizationInput): FiveSplitCategory
 
 // ── 3-Split (3-category system) ───────────────────────────────────────
 
-const NOTIFICATION_PREFIXES = new Set([
-  "noreply",
-  "no-reply",
-  "notifications",
-  "notification",
-  "notify",
-  "alerts",
-  "alert",
-  "donotreply",
-  "do-not-reply",
-  "mailer-daemon",
-  "postmaster",
-  "billing",
-  "account",
-  "security",
-  "verify",
-  "confirm",
-]);
+/** Default feed patterns — empty, user adds senders manually. */
+export const DEFAULT_FEED_PATTERNS: string[] = [];
 
-const THREE_SPLIT_FEED_OVERRIDES = new Set([
-  "economist.com",
-  "e.economist.com",
-  "a16z.com",
-  "future.a16z.com",
-  "bloomberg.com",
-  "mail.bloombergbusiness.com",
-]);
+/** Default notification patterns — match common transactional sender prefixes. */
+export const DEFAULT_NOTIFICATION_PATTERNS = [
+  "^noreply@",
+  "^no-reply@",
+  "^notifications?@",
+  "^notify@",
+  "^alerts?@",
+  "^donotreply@",
+  "^do-not-reply@",
+  "^mailer-daemon@",
+  "^postmaster@",
+  "^billing@",
+  "^account@",
+  "^security@",
+  "^verify@",
+  "^confirm@",
+];
+
+export interface ThreeSplitConfig {
+  feedPatterns: RegExp[];
+  notificationPatterns: RegExp[];
+}
+
+export function buildThreeSplitConfig(
+  feedPatterns: string[] = DEFAULT_FEED_PATTERNS,
+  notificationPatterns: string[] = DEFAULT_NOTIFICATION_PATTERNS,
+): ThreeSplitConfig {
+  return {
+    feedPatterns: feedPatterns.map((p) => new RegExp(p, "i")),
+    notificationPatterns: notificationPatterns.map((p) => new RegExp(p, "i")),
+  };
+}
+
+const DEFAULT_CONFIG = buildThreeSplitConfig();
 
 /**
  * 3-Split categorization — does NOT use Gmail CATEGORY_* labels.
- * Pure heuristic-based: sender overrides, prefixes, headers, domains.
+ * Pure heuristic-based: configurable regex patterns + List-Unsubscribe header.
  *
- * 1. Sender feed overrides (known newsletters)
- * 2. Transactional/notification prefixes → Notifications
- * 3. List-Unsubscribe or newsletter/promo/social domain/prefix → Feeds
+ * 1. Feed patterns (regex on sender address) → Feeds
+ * 2. List-Unsubscribe header → Feeds (newsletters use noreply@ but aren't notifications)
+ * 3. Notification patterns (regex on sender address) → Notifications
  * 4. Default → Primary
  */
-export function categorizeByThreeSplitRules(input: CategorizationInput): ThreeSplitCategory {
-  const domain = input.fromAddress ? getDomain(input.fromAddress) : null;
-  const localPart = input.fromAddress ? getLocalPart(input.fromAddress) : null;
+export function categorizeByThreeSplitRules(
+  input: CategorizationInput,
+  config: ThreeSplitConfig = DEFAULT_CONFIG,
+): ThreeSplitCategory {
+  const addr = input.fromAddress?.toLowerCase() ?? null;
 
-  // Layer 0: Sender-specific feed overrides
-  if (domain && THREE_SPLIT_FEED_OVERRIDES.has(domain)) return "Feeds";
-  if (input.fromAddress && THREE_SPLIT_FEED_OVERRIDES.has(input.fromAddress.toLowerCase())) return "Feeds";
+  // Layer 0: Feed patterns (regex on sender address)
+  if (addr) {
+    for (const pattern of config.feedPatterns) {
+      if (pattern.test(addr)) return "Feeds";
+    }
+  }
 
-  // Layer 1: Notification prefixes (transactional)
-  if (localPart && NOTIFICATION_PREFIXES.has(localPart)) return "Notifications";
-
-  // Layer 2: List-Unsubscribe → Feeds
+  // Layer 1: List-Unsubscribe → Feeds (before notification patterns — newsletters
+  // like Matt Levine use noreply@ but are clearly feeds, not notifications)
   if (input.listUnsubscribe) return "Feeds";
 
-  // Layer 3: Known feed domains/prefixes
-  if (domain && (NEWSLETTER_DOMAINS.has(domain) || SOCIAL_DOMAINS.has(domain))) return "Feeds";
-  if (localPart && PROMO_PREFIXES.has(localPart)) return "Feeds";
+  // Layer 2: Notification patterns (regex on sender address)
+  if (addr) {
+    for (const pattern of config.notificationPatterns) {
+      if (pattern.test(addr)) return "Notifications";
+    }
+  }
 
-  // Layer 4: Default
+  // Layer 3: Default
   return "Primary";
 }
