@@ -163,6 +163,9 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               setSelectedIdx(0);
             }}
             onKeyDown={handleKeyDown}
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             placeholder="Type a command..."
             className="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-tertiary"
           />

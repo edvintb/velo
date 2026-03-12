@@ -85,6 +85,9 @@ export function AskInbox({ isOpen, onClose }: AskInboxProps) {
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={handleKeyDown}
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             placeholder="Ask a question about your emails..."
             className="flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-tertiary"
           />
