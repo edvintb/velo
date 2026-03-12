@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
-import { useAccountStore, type Account } from "@/stores/accountStore";
-import { ChevronDown, Check, Plus, UserPlus, Calendar } from "lucide-react";
+import { useAccountStore, ALL_ACCOUNTS_ID, type Account } from "@/stores/accountStore";
+import { ChevronDown, Check, Plus, UserPlus, Calendar, Inbox, Star } from "lucide-react";
 import { useClickOutside } from "@/hooks/useClickOutside";
 
 interface AccountSwitcherProps {
@@ -12,7 +12,7 @@ export function AccountSwitcher({
   collapsed,
   onAddAccount,
 }: AccountSwitcherProps) {
-  const { accounts, activeAccountId, setActiveAccount } = useAccountStore();
+  const { accounts, activeAccountId, setActiveAccount, defaultAccountId, setDefaultAccount } = useAccountStore();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
@@ -61,16 +61,29 @@ export function AccountSwitcher({
           collapsed ? "justify-center" : "gap-2.5"
         } ${open ? "bg-sidebar-hover" : ""}`}
       >
-        <ActiveAvatar account={activeAccount} />
-        {!collapsed && activeAccount && (
+        <ActiveAvatar account={activeAccount} isAllAccounts={activeAccountId === ALL_ACCOUNTS_ID} />
+        {!collapsed && (
           <>
             <div className="flex-1 min-w-0 text-left">
-              <div className="text-sm font-medium text-sidebar-text truncate leading-tight">
-                {activeAccount.displayName || activeAccount.email.split("@")[0]}
-              </div>
-              <div className="text-xs text-sidebar-text/50 truncate leading-tight">
-                {activeAccount.email}
-              </div>
+              {activeAccountId === ALL_ACCOUNTS_ID ? (
+                <>
+                  <div className="text-sm font-medium text-sidebar-text truncate leading-tight">
+                    All Accounts
+                  </div>
+                  <div className="text-xs text-sidebar-text/50 truncate leading-tight">
+                    {accounts.length} accounts
+                  </div>
+                </>
+              ) : activeAccount ? (
+                <>
+                  <div className="text-sm font-medium text-sidebar-text truncate leading-tight">
+                    {activeAccount.displayName || activeAccount.email.split("@")[0]}
+                  </div>
+                  <div className="text-xs text-sidebar-text/50 truncate leading-tight">
+                    {activeAccount.email}
+                  </div>
+                </>
+              ) : null}
             </div>
             <ChevronDown
               size={14}
@@ -90,38 +103,84 @@ export function AccountSwitcher({
           }`}
         >
           {accounts.length > 1 && (
-            <div className="px-3 py-1.5 text-[0.625rem] font-medium text-text-tertiary uppercase tracking-wider">
-              Accounts
-            </div>
-          )}
-          {accounts.map((account) => {
-            const isActive = account.id === activeAccountId;
-            return (
+            <>
               <button
-                key={account.id}
-                onClick={() => handleSwitch(account.id)}
+                onClick={() => handleSwitch(ALL_ACCOUNTS_ID)}
                 className={`flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors ${
-                  isActive
+                  activeAccountId === ALL_ACCOUNTS_ID
                     ? "bg-accent/8 text-accent"
                     : "text-text-primary hover:bg-bg-hover"
                 }`}
               >
-                <AccountAvatarSmall account={account} isActive={isActive} />
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold ${
+                  activeAccountId === ALL_ACCOUNTS_ID
+                    ? "bg-accent text-white"
+                    : "bg-accent/12 text-accent"
+                }`}>
+                  <Inbox size={14} />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate leading-tight flex items-center gap-1.5">
-                    {account.displayName || account.email.split("@")[0]}
-                    {account.provider === "caldav" && (
-                      <Calendar size={12} className="shrink-0 text-text-tertiary" />
-                    )}
-                  </div>
+                  <div className="text-sm font-medium truncate leading-tight">All Accounts</div>
                   <div className="text-xs text-text-secondary truncate leading-tight">
-                    {account.email}
+                    {accounts.length} accounts
                   </div>
                 </div>
-                {isActive && (
+                {activeAccountId === ALL_ACCOUNTS_ID && (
                   <Check size={14} className="shrink-0 text-accent" />
                 )}
               </button>
+              <div className="border-t border-border-primary my-1" />
+              <div className="px-3 py-1.5 text-[0.625rem] font-medium text-text-tertiary uppercase tracking-wider">
+                Accounts
+              </div>
+            </>
+          )}
+          {accounts.map((account) => {
+            const isActive = account.id === activeAccountId;
+            const isDefault = account.id === defaultAccountId;
+            return (
+              <div key={account.id} className="flex items-center">
+                <button
+                  onClick={() => handleSwitch(account.id)}
+                  className={`flex items-center gap-2.5 flex-1 min-w-0 px-3 py-2 text-left transition-colors ${
+                    isActive
+                      ? "bg-accent/8 text-accent"
+                      : "text-text-primary hover:bg-bg-hover"
+                  }`}
+                >
+                  <AccountAvatarSmall account={account} isActive={isActive} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate leading-tight flex items-center gap-1.5">
+                      {account.displayName || account.email.split("@")[0]}
+                      {account.provider === "caldav" && (
+                        <Calendar size={12} className="shrink-0 text-text-tertiary" />
+                      )}
+                    </div>
+                    <div className="text-xs text-text-secondary truncate leading-tight">
+                      {account.email}
+                    </div>
+                  </div>
+                  {isActive && (
+                    <Check size={14} className="shrink-0 text-accent" />
+                  )}
+                </button>
+                {accounts.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!isDefault) setDefaultAccount(account.id);
+                    }}
+                    className={`shrink-0 px-2 py-2 transition-colors ${
+                      isDefault
+                        ? "text-amber-400"
+                        : "text-text-tertiary/30 hover:text-amber-400/60"
+                    }`}
+                    title={isDefault ? "Default account" : "Set as default account"}
+                  >
+                    <Star size={12} fill={isDefault ? "currentColor" : "none"} />
+                  </button>
+                )}
+              </div>
             );
           })}
           <div className="border-t border-border-primary my-1" />
@@ -141,8 +200,16 @@ export function AccountSwitcher({
 }
 
 /** The main avatar shown in the trigger — slightly larger */
-function ActiveAvatar({ account }: { account: Account | undefined }) {
+function ActiveAvatar({ account, isAllAccounts }: { account: Account | undefined; isAllAccounts?: boolean }) {
   const [imgError, setImgError] = useState(false);
+
+  if (isAllAccounts) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-accent/15 text-accent flex items-center justify-center shrink-0 text-sm font-semibold overflow-hidden">
+        <Inbox size={16} />
+      </div>
+    );
+  }
 
   if (!account) return null;
 
