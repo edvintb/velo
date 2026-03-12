@@ -605,7 +605,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         </select>
       </div>
 
-      {/* Category tabs (inbox + split/simple-split mode only, not in all-accounts view) */}
+      {/* Category tabs (inbox + split mode only, not in all-accounts view) */}
       {activeLabel === "inbox" && isSplitMode && !isAllAccounts && (
         <CategoryTabs
           activeCategory={activeCategory}
