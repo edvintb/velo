@@ -5,7 +5,8 @@ import {
   pinThread as pinThreadDb,
   unpinThread as unpinThreadDb,
 } from "../db/threads";
-import { setThreadCategory } from "../db/threadCategories";
+import { setThreadCategoryManual } from "../db/threadCategories";
+import { useUIStore } from "@/stores/uiStore";
 import { snoozeThread } from "../snooze/snoozeManager";
 import { useThreadStore } from "@/stores/threadStore";
 
@@ -92,7 +93,7 @@ async function executeSingleAction(
     case "moveToCategory":
       if (action.params?.category) {
         await Promise.all(threadIds.map((id) =>
-          setThreadCategory(accountId, id, action.params!.category!, true),
+          setThreadCategoryManual(accountId, id, action.params!.category!, useUIStore.getState().inboxViewMode === "three-split" ? "three-split" : "five-split"),
         ));
         window.dispatchEvent(new Event("velo-sync-done"));
       }

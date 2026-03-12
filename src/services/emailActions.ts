@@ -553,9 +553,10 @@ export async function deleteDraftThread(
   const { getGmailClient } = await import("@/services/gmail/tokenManager");
   const { deleteDraftsForThread } = await import("@/services/gmail/draftDeletion");
 
-  const nextId = getNextThreadId(threadId);
-  useThreadStore.getState().removeThread(threadId);
-  if (nextId) navigateToThread(nextId);
+  const nextKey = getNextThreadKey(accountId, threadId);
+  const key = threadKey({ accountId, id: threadId } as any);
+  useThreadStore.getState().removeThread(key);
+  if (nextKey) navigateToThread(nextKey);
 
   const client = await getGmailClient(accountId);
   await deleteDraftsForThread(client, accountId, threadId);

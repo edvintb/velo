@@ -25,11 +25,17 @@ vi.mock("@/services/db/threads", () => ({
 }));
 
 vi.mock("@/services/db/threadCategories", () => ({
-  setThreadCategory: vi.fn(() => Promise.resolve()),
+  setThreadCategoryManual: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("@/services/snooze/snoozeManager", () => ({
   snoozeThread: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock("@/stores/uiStore", () => ({
+  useUIStore: {
+    getState: () => ({ inboxViewMode: "five-split" }),
+  },
 }));
 
 vi.mock("@/stores/threadStore", () => {
@@ -49,7 +55,7 @@ vi.mock("@/stores/threadStore", () => {
 });
 
 import { pinThread, unpinThread } from "@/services/db/threads";
-import { setThreadCategory } from "@/services/db/threadCategories";
+import { setThreadCategoryManual } from "@/services/db/threadCategories";
 import { snoozeThread } from "@/services/snooze/snoozeManager";
 import { useThreadStore } from "@/stores/threadStore";
 import { executeQuickStep } from "./executor";
@@ -224,7 +230,7 @@ describe("executeQuickStep", () => {
     const result = await executeQuickStep(step, ["t1"], "acct-1");
 
     expect(result.success).toBe(true);
-    expect(setThreadCategory).toHaveBeenCalledWith("acct-1", "t1", "Promotions", true);
+    expect(setThreadCategoryManual).toHaveBeenCalledWith("acct-1", "t1", "Promotions", "five-split");
     expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: "velo-sync-done" }));
 
     dispatchSpy.mockRestore();

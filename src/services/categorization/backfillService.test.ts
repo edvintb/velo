@@ -3,15 +3,18 @@ import { backfillUncategorizedThreads } from "./backfillService";
 
 vi.mock("@/services/db/threadCategories", () => ({
   getUncategorizedInboxThreadIds: vi.fn(),
-  setThreadCategory: vi.fn(() => Promise.resolve()),
+  setThreadCategoriesAuto: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("@/services/db/threads", () => ({
   getThreadLabelIds: vi.fn(() => Promise.resolve(["INBOX"])),
 }));
 
-vi.mock("@/services/db/settings", () => ({
-  getSetting: vi.fn(() => Promise.resolve("five-split")),
+vi.mock("@/services/categorization/threeSplitConfig", () => ({
+  loadThreeSplitConfig: vi.fn(() => Promise.resolve({
+    feedPatterns: [],
+    notificationPatterns: [/^noreply@/i, /^no-reply@/i, /^notifications?@/i],
+  })),
 }));
 
 vi.mock("@/services/db/messages", () => ({
@@ -42,7 +45,7 @@ vi.mock("@/services/db/messages", () => ({
   ])),
 }));
 
-import { getUncategorizedInboxThreadIds, setThreadCategory } from "@/services/db/threadCategories";
+import { getUncategorizedInboxThreadIds, setThreadCategoriesAuto } from "@/services/db/threadCategories";
 import { getThreadLabelIds } from "@/services/db/threads";
 import { getMessagesForThread } from "@/services/db/messages";
 
@@ -50,7 +53,7 @@ describe("backfillUncategorizedThreads", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     // Re-apply safe defaults after reset (resetAllMocks clears everything)
-    vi.mocked(setThreadCategory).mockResolvedValue(undefined);
+    vi.mocked(setThreadCategoriesAuto).mockResolvedValue(undefined);
     vi.mocked(getThreadLabelIds).mockResolvedValue(["INBOX"]);
     vi.mocked(getMessagesForThread).mockResolvedValue([]);
     vi.mocked(getUncategorizedInboxThreadIds).mockResolvedValue([]);
@@ -119,11 +122,11 @@ describe("backfillUncategorizedThreads", () => {
     const count = await backfillUncategorizedThreads("acc1");
 
     expect(count).toBe(2);
-    expect(setThreadCategory).toHaveBeenCalledTimes(2);
-    // noreply@ → Updates (UPDATE_PREFIXES)
-    expect(setThreadCategory).toHaveBeenCalledWith("acc1", "t1", "Updates", false);
-    // facebookmail.com → Social (SOCIAL_DOMAINS)
-    expect(setThreadCategory).toHaveBeenCalledWith("acc1", "t2", "Social", false);
+    expect(setThreadCategoriesAuto).toHaveBeenCalledTimes(2);
+    // noreply@ → Updates (five-split), Notifications (three-split default pattern)
+    expect(setThreadCategoriesAuto).toHaveBeenCalledWith("acc1", "t1", "Updates", "Notifications");
+    // notifications@facebookmail.com → Social (five-split), Notifications (three-split, notifications@ prefix)
+    expect(setThreadCategoriesAuto).toHaveBeenCalledWith("acc1", "t2", "Social", "Notifications");
   });
 
   it("skips already-categorized threads (returns 0 for empty batch)", async () => {
@@ -132,7 +135,7 @@ describe("backfillUncategorizedThreads", () => {
     const count = await backfillUncategorizedThreads("acc1");
 
     expect(count).toBe(0);
-    expect(setThreadCategory).not.toHaveBeenCalled();
+    expect(setThreadCategoriesAuto).not.toHaveBeenCalled();
   });
 
   it("processes multiple batches when first batch is full", async () => {
@@ -181,10 +184,10 @@ describe("backfillUncategorizedThreads", () => {
     // Verify the batch loop ran
     expect(mockGetUncategorized).toHaveBeenCalledTimes(2);
     expect(count).toBe(batchSize);
-    expect(setThreadCategory).toHaveBeenCalledTimes(batchSize);
-    // All from user@example.com -> Primary (default)
+    expect(setThreadCategoriesAuto).toHaveBeenCalledTimes(batchSize);
+    // All from user@example.com -> Primary (default for both modes)
     for (let i = 0; i < batchSize; i++) {
-      expect(setThreadCategory).toHaveBeenCalledWith("acc1", `t${i}`, "Primary", false);
+      expect(setThreadCategoriesAuto).toHaveBeenCalledWith("acc1", `t${i}`, "Primary", "Primary");
     }
   });
 });

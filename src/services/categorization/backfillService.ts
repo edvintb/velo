@@ -1,23 +1,18 @@
-import { getUncategorizedInboxThreadIds, setThreadCategory } from "@/services/db/threadCategories";
+import { getUncategorizedInboxThreadIds, setThreadCategoriesAuto } from "@/services/db/threadCategories";
 import { getThreadLabelIds } from "@/services/db/threads";
 import { getMessagesForThread } from "@/services/db/messages";
-import { categorizeByRules, categorizeByThreeSplitRules } from "./ruleEngine";
-import { getSetting } from "@/services/db/settings";
+import { categorizeByFiveSplitRules, categorizeByThreeSplitRules } from "./ruleEngine";
+import { loadThreeSplitConfig } from "./threeSplitConfig";
 
 /**
  * Backfill uncategorized inbox threads with rule-based categorization.
- *
- * 1. Query inbox threads that have no entry in thread_categories
- * 2. For each, get labels and last message to run rule engine
- * 3. Insert the resulting category
- * 4. Return count of categorized threads
+ * Always categorizes into both 5-split and 3-split systems.
  */
 export async function backfillUncategorizedThreads(
   accountId: string,
   batchSize = 50,
 ): Promise<number> {
-  const viewMode = await getSetting("inbox_view_mode");
-  const categorizeFn = viewMode === "three-split" ? categorizeByThreeSplitRules : categorizeByRules;
+  const threeSplitConfig = await loadThreeSplitConfig();
 
   let totalCategorized = 0;
   let batch: Awaited<ReturnType<typeof getUncategorizedInboxThreadIds>>;
@@ -32,13 +27,15 @@ export async function backfillUncategorizedThreads(
       ]);
       const lastMessage = messages[messages.length - 1];
 
-      const category = categorizeFn({
+      const catInput = {
         labelIds,
         fromAddress: lastMessage?.from_address ?? thread.fromAddress ?? null,
         listUnsubscribe: lastMessage?.list_unsubscribe ?? null,
-      });
+      };
 
-      await setThreadCategory(accountId, thread.id, category, false);
+      const fiveCategory = categorizeByFiveSplitRules(catInput);
+      const threeCategory = categorizeByThreeSplitRules(catInput, threeSplitConfig);
+      await setThreadCategoriesAuto(accountId, thread.id, fiveCategory, threeCategory);
       totalCategorized++;
     }));
   } while (batch.length === batchSize);

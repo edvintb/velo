@@ -21,16 +21,18 @@ vi.mock("../db/settings", () => ({
   getSetting: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("../db/threadCategories", () => ({
-  getThreadCategoryWithManual: vi.fn().mockResolvedValue(null),
-  setThreadCategory: vi.fn(),
+  setThreadCategoriesAuto: vi.fn(),
   getThreadCategory: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("../db/notificationVips", () => ({
   getVipSenders: vi.fn().mockResolvedValue(new Set()),
 }));
 vi.mock("@/services/categorization/ruleEngine", () => ({
-  categorizeByRules: vi.fn().mockReturnValue("Primary"),
+  categorizeByFiveSplitRules: vi.fn().mockReturnValue("Primary"),
   categorizeByThreeSplitRules: vi.fn().mockReturnValue("Primary"),
+}));
+vi.mock("@/services/categorization/threeSplitConfig", () => ({
+  loadThreeSplitConfig: vi.fn().mockResolvedValue({ feedPatterns: [], notificationPatterns: [] }),
 }));
 vi.mock("../filters/filterEngine", () => ({
   applyFiltersToMessages: vi.fn(),

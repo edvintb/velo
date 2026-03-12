@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import { triggerSync } from "@/services/gmail/syncManager";
 import { useUIStore } from "@/stores/uiStore";
-import { setThreadCategory, ALL_FIVE_SPLIT_CATEGORIES, ALL_THREE_SPLIT_CATEGORIES } from "@/services/db/threadCategories";
+import { setThreadCategoryManual, ALL_FIVE_SPLIT_CATEGORIES, ALL_THREE_SPLIT_CATEGORIES } from "@/services/db/threadCategories";
 
 function buildQuote(msg: { from_name: string | null; from_address: string | null; date: string | number; body_html: string | null; body_text: string | null }): string {
   const date = new Date(msg.date).toLocaleString();
@@ -554,7 +554,8 @@ function ThreadMenu({
           for (const key of targetKeys) {
             const t = useThreadStore.getState().threadMap.get(key);
             if (!t) continue;
-            await setThreadCategory(t.accountId, t.id, cat, true);
+            const mode = useUIStore.getState().inboxViewMode === "three-split" ? "three-split" as const : "five-split" as const;
+            await setThreadCategoryManual(t.accountId, t.id, cat, mode);
           }
           window.dispatchEvent(new Event("velo-sync-done"));
         },

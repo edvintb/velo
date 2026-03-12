@@ -8,6 +8,7 @@ import { updateAccountSyncState } from "../db/accounts";
 import { shouldNotifyForMessage, queueNewEmailNotification } from "../notifications/notificationManager";
 import { applyFiltersToMessages } from "../filters/filterEngine";
 import { getSetting } from "../db/settings";
+import type { ThreeSplitConfig } from "../categorization/ruleEngine";
 import { getMutedThreadIds } from "../db/threads";
 import { getThreadCategory } from "../db/threadCategories";
 import { getVipSenders } from "../db/notificationVips";
@@ -37,6 +38,7 @@ async function processAndStoreThread(
   parsedMessages: ParsedMessage[],
   client?: GmailClient,
   autoArchiveCategories?: Set<string>,
+  threeSplitConfig?: ThreeSplitConfig,
 ): Promise<void> {
   const lastMessage = parsedMessages[parsedMessages.length - 1]!;
   const firstMessage = parsedMessages[0]!;
@@ -68,47 +70,42 @@ async function processAndStoreThread(
 
   await setThreadLabels(accountId, thread.id, [...allLabelIds]);
 
-  // Rule-based categorization for inbox threads
+  // Rule-based categorization for inbox threads (both 5-split and 3-split)
   if (allLabelIds.has("INBOX")) {
-    const { getThreadCategoryWithManual, setThreadCategory } = await import("@/services/db/threadCategories");
-    const existing = await getThreadCategoryWithManual(accountId, thread.id);
-    // Skip if manually categorized
-    if (!existing || !existing.isManual) {
-      const { categorizeByRules, categorizeByThreeSplitRules } = await import("@/services/categorization/ruleEngine");
-      const { getSetting } = await import("@/services/db/settings");
-      const viewMode = await getSetting("inbox_view_mode");
-      const categorizeFn = viewMode === "three-split" ? categorizeByThreeSplitRules : categorizeByRules;
-      const category = categorizeFn({
-        labelIds: [...allLabelIds],
-        fromAddress: lastMessage.fromAddress,
-        listUnsubscribe: lastMessage.listUnsubscribe,
-      });
-      await setThreadCategory(accountId, thread.id, category, false);
+    const { setThreadCategoriesAuto } = await import("@/services/db/threadCategories");
+    const { categorizeByFiveSplitRules, categorizeByThreeSplitRules } = await import("@/services/categorization/ruleEngine");
+    const catInput = {
+      labelIds: [...allLabelIds],
+      fromAddress: lastMessage.fromAddress,
+      listUnsubscribe: lastMessage.listUnsubscribe,
+    };
+    const fiveCategory = categorizeByFiveSplitRules(catInput);
+    const threeCategory = categorizeByThreeSplitRules(catInput, threeSplitConfig);
+    await setThreadCategoriesAuto(accountId, thread.id, fiveCategory, threeCategory);
 
-      // Auto-archive if category matches
-      if (client && autoArchiveCategories && autoArchiveCategories.has(category) && category !== "Primary") {
-        try {
-          await client.modifyThread(thread.id, undefined, ["INBOX"]);
-          allLabelIds.delete("INBOX");
-          await setThreadLabels(accountId, thread.id, [...allLabelIds]);
-        } catch (err) {
-          console.error(`Failed to auto-archive thread ${thread.id}:`, err);
-        }
+    // Auto-archive if category matches (uses five-split category for archive rules)
+    if (client && autoArchiveCategories && autoArchiveCategories.has(fiveCategory) && fiveCategory !== "Primary") {
+      try {
+        await client.modifyThread(thread.id, undefined, ["INBOX"]);
+        allLabelIds.delete("INBOX");
+        await setThreadLabels(accountId, thread.id, [...allLabelIds]);
+      } catch (err) {
+        console.error(`Failed to auto-archive thread ${thread.id}:`, err);
       }
+    }
 
-      // Hold thread if delivery schedule is active for this category
-      if (category !== "Primary") {
-        try {
-          const { getBundleRule, holdThread, getNextDeliveryTime } = await import("@/services/db/bundleRules");
-          const rule = await getBundleRule(accountId, category);
-          if (rule?.delivery_enabled && rule.delivery_schedule) {
-            const schedule = JSON.parse(rule.delivery_schedule);
-            const heldUntil = getNextDeliveryTime(schedule);
-            await holdThread(accountId, thread.id, category, heldUntil);
-          }
-        } catch (err) {
-          console.error(`Failed to check bundle rule for thread ${thread.id}:`, err);
+    // Hold thread if delivery schedule is active for this category
+    if (fiveCategory !== "Primary") {
+      try {
+        const { getBundleRule, holdThread, getNextDeliveryTime } = await import("@/services/db/bundleRules");
+        const rule = await getBundleRule(accountId, fiveCategory);
+        if (rule?.delivery_enabled && rule.delivery_schedule) {
+          const schedule = JSON.parse(rule.delivery_schedule);
+          const heldUntil = getNextDeliveryTime(schedule);
+          await holdThread(accountId, thread.id, fiveCategory, heldUntil);
         }
+      } catch (err) {
+        console.error(`Failed to check bundle rule for thread ${thread.id}:`, err);
       }
     }
   }
@@ -220,8 +217,10 @@ export async function initialSync(
   // Phase 3: Fetch and store each thread's details
   let historyId = "0";
 
-  // Load auto-archive categories once for the whole sync
+  // Load config once for the whole sync
   const autoArchiveCategories = await loadAutoArchiveCategories();
+  const { loadThreeSplitConfig } = await import("@/services/categorization/threeSplitConfig");
+  const threeSplitConfig = await loadThreeSplitConfig();
 
   let progress = 0;
   await parallelLimit(
@@ -242,7 +241,7 @@ export async function initialSync(
         if (!thread.messages || thread.messages.length === 0) return;
 
         const parsedMessages = thread.messages.map(parseGmailMessage);
-        await processAndStoreThread(thread, accountId, parsedMessages, client, autoArchiveCategories);
+        await processAndStoreThread(thread, accountId, parsedMessages, client, autoArchiveCategories, threeSplitConfig);
       } catch (err) {
         console.error(`Failed to sync thread ${stub.id}:`, err);
       }
@@ -344,6 +343,8 @@ export async function deltaSync(
 
     // Load settings once for the whole sync cycle
     const autoArchiveCategories = await loadAutoArchiveCategories();
+    const { loadThreeSplitConfig } = await import("@/services/categorization/threeSplitConfig");
+    const threeSplitConfig = await loadThreeSplitConfig();
     const mutedThreadIds = await getMutedThreadIds(accountId);
     const smartNotifications = (await getSetting("smart_notifications")) !== "false";
     const notifyCategories = new Set(
@@ -368,7 +369,7 @@ export async function deltaSync(
           if (!thread.messages || thread.messages.length === 0) return;
 
           const parsedMessages = thread.messages.map(parseGmailMessage);
-          await processAndStoreThread(thread, accountId, parsedMessages, client, autoArchiveCategories);
+          await processAndStoreThread(thread, accountId, parsedMessages, client, autoArchiveCategories, threeSplitConfig);
 
           // Auto-archive muted threads that reappear in INBOX
           if (mutedThreadIds.has(threadId)) {
@@ -390,7 +391,7 @@ export async function deltaSync(
           for (const parsed of parsedMessages) {
             if (newInboxMessageIds.has(parsed.id) && !mutedThreadIds.has(threadId)) {
               const fromAddr = parsed.fromAddress ?? undefined;
-              if (shouldNotifyForMessage(smartNotifications, notifyCategories, vipSenders, await getThreadCategory(accountId, threadId), fromAddr)) {
+              if (shouldNotifyForMessage(smartNotifications, notifyCategories, vipSenders, await getThreadCategory(accountId, threadId, "five-split"), fromAddr)) {
                 const sender = parsed.fromName ?? parsed.fromAddress ?? "Unknown";
                 queueNewEmailNotification(
                   sender,

@@ -382,9 +382,8 @@ export default function App() {
   }, []);
 
   // Listen for sync status updates
-  const backfillDoneRef = useRef(false);
   useEffect(() => {
-    const unsub = onSyncStatus((accountId, status, progress, error) => {
+    const unsub = onSyncStatus((_accountId, status, progress, error) => {
       if (status === "syncing") {
         if (progress) {
           if (progress.phase === "messages") {
@@ -405,13 +404,6 @@ export default function App() {
         window.dispatchEvent(new Event("velo-sync-done"));
         updateBadgeCount();
 
-        // Backfill uncategorized threads after first successful sync
-        if (!backfillDoneRef.current) {
-          backfillDoneRef.current = true;
-          import("./services/categorization/backfillService")
-            .then(({ backfillUncategorizedThreads }) => backfillUncategorizedThreads(accountId))
-            .catch((err) => console.error("Backfill error:", err));
-        }
       } else if (status === "error") {
         setSyncStatus(error ? `Sync failed: ${formatSyncError(error)}` : "Sync failed");
         // Still dispatch sync-done so the UI refreshes with any partially stored data

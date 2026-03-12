@@ -775,6 +775,15 @@ const MIGRATIONS = [
     description: "Accept self-signed certificates for IMAP/SMTP",
     sql: `ALTER TABLE accounts ADD COLUMN accept_invalid_certs INTEGER DEFAULT 0;`,
   },
+  {
+    version: 24,
+    description: "Add three-split category columns to thread_categories",
+    sql: `
+      ALTER TABLE thread_categories ADD COLUMN three_split_category TEXT;
+      ALTER TABLE thread_categories ADD COLUMN three_split_is_manual INTEGER DEFAULT 0;
+      CREATE INDEX IF NOT EXISTS idx_thread_categories_three ON thread_categories(account_id, three_split_category);
+    `,
+  },
 ];
 
 /**
