@@ -9,7 +9,7 @@ export type EmailDensity = "compact" | "default" | "spacious";
 export type DefaultReplyMode = "reply" | "replyAll";
 export type MarkAsReadBehavior = "instant" | "2s" | "manual";
 export type FontScale = "small" | "default" | "large" | "xlarge";
-export type InboxViewMode = "unified" | "split";
+export type InboxViewMode = "unified" | "five-split" | "three-split";
 
 export interface SidebarNavItem {
   id: string;

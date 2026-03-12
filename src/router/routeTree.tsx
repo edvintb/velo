@@ -16,7 +16,7 @@ const TasksPage = lazy(() => import("@/components/tasks/TasksPage").then((m) => 
 const AttachmentLibrary = lazy(() => import("@/components/attachments/AttachmentLibrary").then((m) => ({ default: m.AttachmentLibrary })));
 
 // ---------- Search param validation ----------
-const VALID_CATEGORIES = ["Primary", "Updates", "Promotions", "Social", "Newsletters"] as const;
+const VALID_CATEGORIES = ["Primary", "Updates", "Promotions", "Social", "Newsletters", "Feeds", "Notifications"] as const;
 
 type MailSearch = {
   q?: string;

@@ -1,10 +1,21 @@
-import type { ThreadCategory } from "@/services/db/threadCategories";
+import type { FiveSplitCategory, ThreeSplitCategory } from "@/services/db/threadCategories";
 
 export interface CategorizationInput {
   labelIds: string[];
   fromAddress: string | null;
   listUnsubscribe: string | null;
 }
+
+/** Exact sender addresses or domains forced to a specific category. Checked first. */
+const SENDER_OVERRIDES: Map<string, FiveSplitCategory> = new Map([
+  // Newsletters miscategorized as Updates
+  ["economist.com", "Newsletters"],
+  ["e.economist.com", "Newsletters"],
+  ["a16z.com", "Newsletters"],
+  ["future.a16z.com", "Newsletters"],
+  ["bloomberg.com", "Newsletters"],       // Matt Levine / Money Stuff
+  ["mail.bloombergbusiness.com", "Newsletters"],
+]);
 
 const SOCIAL_DOMAINS = new Set([
   "facebookmail.com",
@@ -96,8 +107,16 @@ function getLocalPart(email: string): string | null {
  * 3. List-Unsubscribe header presence
  * 4. Default → Primary
  */
-export function categorizeByRules(input: CategorizationInput): ThreadCategory {
-  // Layer 1: Gmail category labels (highest priority — Google's own ML)
+export function categorizeByRules(input: CategorizationInput): FiveSplitCategory {
+  // Layer 0: Sender-specific overrides (highest priority)
+  if (input.fromAddress) {
+    const domain = getDomain(input.fromAddress);
+    const addr = input.fromAddress.toLowerCase();
+    if (SENDER_OVERRIDES.has(addr)) return SENDER_OVERRIDES.get(addr)!;
+    if (domain && SENDER_OVERRIDES.has(domain)) return SENDER_OVERRIDES.get(domain)!;
+  }
+
+  // Layer 1: Gmail category labels
   for (const label of input.labelIds) {
     switch (label) {
       case "CATEGORY_PROMOTIONS":
@@ -146,6 +165,67 @@ export function categorizeByRules(input: CategorizationInput): ThreadCategory {
     // Generic unsubscribable mail → Promotions
     return "Promotions";
   }
+
+  // Layer 4: Default
+  return "Primary";
+}
+
+// ── 3-Split (3-category system) ───────────────────────────────────────
+
+const NOTIFICATION_PREFIXES = new Set([
+  "noreply",
+  "no-reply",
+  "notifications",
+  "notification",
+  "notify",
+  "alerts",
+  "alert",
+  "donotreply",
+  "do-not-reply",
+  "mailer-daemon",
+  "postmaster",
+  "billing",
+  "account",
+  "security",
+  "verify",
+  "confirm",
+]);
+
+const THREE_SPLIT_FEED_OVERRIDES = new Set([
+  "economist.com",
+  "e.economist.com",
+  "a16z.com",
+  "future.a16z.com",
+  "bloomberg.com",
+  "mail.bloombergbusiness.com",
+]);
+
+/**
+ * 3-Split categorization — does NOT use Gmail CATEGORY_* labels.
+ * Pure heuristic-based: sender overrides, prefixes, headers, domains.
+ *
+ * 1. Sender feed overrides (known newsletters)
+ * 2. Transactional/notification prefixes → Notifications
+ * 3. List-Unsubscribe or newsletter/promo/social domain/prefix → Feeds
+ * 4. Default → Primary
+ */
+export function categorizeByThreeSplitRules(input: CategorizationInput): ThreeSplitCategory {
+  const domain = input.fromAddress ? getDomain(input.fromAddress) : null;
+  const localPart = input.fromAddress ? getLocalPart(input.fromAddress) : null;
+
+  // Layer 0: Sender-specific feed overrides
+  if (domain && THREE_SPLIT_FEED_OVERRIDES.has(domain)) return "Feeds";
+  if (input.fromAddress && THREE_SPLIT_FEED_OVERRIDES.has(input.fromAddress.toLowerCase())) return "Feeds";
+
+  // Layer 1: Notification prefixes (transactional)
+  if (localPart && NOTIFICATION_PREFIXES.has(localPart)) return "Notifications";
+
+  // Layer 2: List-Unsubscribe → Feeds
+  if (input.listUnsubscribe) return "Feeds";
+
+  // Layer 3: Known feed domains/prefixes
+  if (domain && (NEWSLETTER_DOMAINS.has(domain) || SOCIAL_DOMAINS.has(domain))) return "Feeds";
+  if (localPart && PROMO_PREFIXES.has(localPart)) return "Feeds";
 
   // Layer 4: Default
   return "Primary";

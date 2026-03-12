@@ -74,8 +74,11 @@ async function processAndStoreThread(
     const existing = await getThreadCategoryWithManual(accountId, thread.id);
     // Skip if manually categorized
     if (!existing || !existing.isManual) {
-      const { categorizeByRules } = await import("@/services/categorization/ruleEngine");
-      const category = categorizeByRules({
+      const { categorizeByRules, categorizeByThreeSplitRules } = await import("@/services/categorization/ruleEngine");
+      const { getSetting } = await import("@/services/db/settings");
+      const viewMode = await getSetting("inbox_view_mode");
+      const categorizeFn = viewMode === "three-split" ? categorizeByThreeSplitRules : categorizeByRules;
+      const category = categorizeFn({
         labelIds: [...allLabelIds],
         fromAddress: lastMessage.fromAddress,
         listUnsubscribe: lastMessage.listUnsubscribe,

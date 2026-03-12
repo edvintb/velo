@@ -1,13 +1,21 @@
 import { getDb } from "./connection";
 
-export type ThreadCategory = "Primary" | "Updates" | "Promotions" | "Social" | "Newsletters";
+export type FiveSplitCategory = "Primary" | "Updates" | "Promotions" | "Social" | "Newsletters";
 
-export const ALL_CATEGORIES: ThreadCategory[] = [
+export const ALL_FIVE_SPLIT_CATEGORIES: FiveSplitCategory[] = [
   "Primary",
   "Updates",
   "Promotions",
   "Social",
   "Newsletters",
+];
+
+export type ThreeSplitCategory = "Primary" | "Feeds" | "Notifications";
+
+export const ALL_THREE_SPLIT_CATEGORIES: ThreeSplitCategory[] = [
+  "Primary",
+  "Feeds",
+  "Notifications",
 ];
 
 interface DbThreadCategory {

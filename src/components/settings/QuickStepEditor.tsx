@@ -14,7 +14,7 @@ import {
   type QuickStepAction,
   type QuickStepActionType,
 } from "@/services/quickSteps/types";
-import { ALL_CATEGORIES } from "@/services/db/threadCategories";
+import { ALL_FIVE_SPLIT_CATEGORIES } from "@/services/db/threadCategories";
 import { seedDefaultQuickSteps } from "@/services/quickSteps/defaults";
 
 function describeActions(actionsJson: string): string {
@@ -306,7 +306,7 @@ export function QuickStepEditor() {
                           className="w-full bg-bg-tertiary text-text-primary text-xs px-2 py-1 rounded border border-border-primary"
                         >
                           <option value="">Select category...</option>
-                          {ALL_CATEGORIES.map((cat) => (
+                          {ALL_FIVE_SPLIT_CATEGORIES.map((cat) => (
                             <option key={cat} value={cat}>{cat}</option>
                           ))}
                         </select>
