@@ -43,7 +43,7 @@ Rules:
 - When referencing a message, include the message ID in brackets like [msg_id] so the user can navigate to it
 - Do not make up or infer information not present in the emails`;
 
-export const CATEGORIZE_PROMPT = `Categorize each email thread into exactly ONE of these categories:
+export const CATEGORIZE_FIVE_SPLIT_PROMPT = `Categorize each email thread into exactly ONE of these categories:
 - Primary: Personal correspondence, direct work emails, important messages requiring action
 - Updates: Notifications, receipts, order confirmations, automated updates
 - Promotions: Marketing emails, deals, offers, advertisements
