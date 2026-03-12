@@ -539,8 +539,7 @@ function ThreadMenu({
       icon: FolderInput,
       shortcut: "v",
       action: () => {
-        const threadIds = targetKeys.map((k) => parseThreadKey(k).threadId);
-        window.dispatchEvent(new CustomEvent("velo-move-to-folder", { detail: { threadIds } }));
+        window.dispatchEvent(new CustomEvent("velo-move-to-folder", { detail: { threadIds: targetKeys } }));
       },
     },
     {

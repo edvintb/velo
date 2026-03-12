@@ -248,7 +248,7 @@ export function ActionBar({ thread, messages, noReply, defaultReplyMode = "reply
           iconOnly
           icon={<FolderInput size={15} />}
           onClick={() => {
-            window.dispatchEvent(new CustomEvent("velo-move-to-folder", { detail: { threadIds: [thread.id] } }));
+            window.dispatchEvent(new CustomEvent("velo-move-to-folder", { detail: { threadIds: [threadKey(thread)] } }));
           }}
           title="Move to folder (v)"
         />
