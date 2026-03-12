@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useCallback, useRef, useState } from "react";
-import { Inbox, Bell, Tag, Users, Newspaper, type LucideIcon } from "lucide-react";
-import { ALL_CATEGORIES } from "@/services/db/threadCategories";
+import { Inbox, Bell, Tag, Users, Newspaper, Rss, type LucideIcon } from "lucide-react";
+import { ALL_FIVE_SPLIT_CATEGORIES, ALL_THREE_SPLIT_CATEGORIES } from "@/services/db/threadCategories";
 
 export interface CategoryTabsProps {
   activeCategory: string;
   onCategoryChange: (category: string) => void;
   unreadCounts?: Record<string, number>;
+  mode?: "five-split" | "three-split";
 }
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
@@ -14,9 +15,12 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   Promotions: Tag,
   Social: Users,
   Newsletters: Newspaper,
+  Feeds: Rss,
+  Notifications: Bell,
 };
 
-export function CategoryTabs({ activeCategory, onCategoryChange, unreadCounts }: CategoryTabsProps) {
+export function CategoryTabs({ activeCategory, onCategoryChange, unreadCounts, mode = "five-split" }: CategoryTabsProps) {
+  const categories = mode === "three-split" ? ALL_THREE_SPLIT_CATEGORIES : ALL_FIVE_SPLIT_CATEGORIES;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number } | null>(null);
@@ -65,7 +69,7 @@ export function CategoryTabs({ activeCategory, onCategoryChange, unreadCounts }:
         ref={scrollRef}
         className="flex px-2 overflow-x-auto hide-scrollbar relative"
       >
-        {ALL_CATEGORIES.map((cat) => {
+        {categories.map((cat) => {
           const Icon = CATEGORY_ICONS[cat];
           const count = unreadCounts?.[cat] ?? 0;
           return (

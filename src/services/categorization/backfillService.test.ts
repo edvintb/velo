@@ -10,6 +10,10 @@ vi.mock("@/services/db/threads", () => ({
   getThreadLabelIds: vi.fn(() => Promise.resolve(["INBOX"])),
 }));
 
+vi.mock("@/services/db/settings", () => ({
+  getSetting: vi.fn(() => Promise.resolve("five-split")),
+}));
+
 vi.mock("@/services/db/messages", () => ({
   getMessagesForThread: vi.fn(() => Promise.resolve([
     {

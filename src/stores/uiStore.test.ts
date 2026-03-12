@@ -189,9 +189,9 @@ describe("uiStore", () => {
   });
 
   it("setInboxViewMode should persist to DB and update state", () => {
-    useUIStore.getState().setInboxViewMode("split");
-    expect(setSetting).toHaveBeenCalledWith("inbox_view_mode", "split");
-    expect(useUIStore.getState().inboxViewMode).toBe("split");
+    useUIStore.getState().setInboxViewMode("five-split");
+    expect(setSetting).toHaveBeenCalledWith("inbox_view_mode", "five-split");
+    expect(useUIStore.getState().inboxViewMode).toBe("five-split");
 
     useUIStore.getState().setInboxViewMode("unified");
     expect(setSetting).toHaveBeenCalledWith("inbox_view_mode", "unified");

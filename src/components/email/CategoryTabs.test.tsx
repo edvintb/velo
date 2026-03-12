@@ -3,7 +3,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { CategoryTabs } from "./CategoryTabs";
 
 vi.mock("@/services/db/threadCategories", () => ({
-  ALL_CATEGORIES: ["Primary", "Updates", "Promotions", "Social", "Newsletters"],
+  ALL_FIVE_SPLIT_CATEGORIES: ["Primary", "Updates", "Promotions", "Social", "Newsletters"],
+  ALL_THREE_SPLIT_CATEGORIES: ["Primary", "Feeds", "Notifications"],
 }));
 
 // jsdom does not provide ResizeObserver or scrollIntoView

@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import { triggerSync } from "@/services/gmail/syncManager";
 import { useUIStore } from "@/stores/uiStore";
-import { setThreadCategory, ALL_CATEGORIES } from "@/services/db/threadCategories";
+import { setThreadCategory, ALL_FIVE_SPLIT_CATEGORIES, ALL_THREE_SPLIT_CATEGORIES } from "@/services/db/threadCategories";
 
 function buildQuote(msg: { from_name: string | null; from_address: string | null; date: string | number; body_html: string | null; body_text: string | null }): string {
   const date = new Date(msg.date).toLocaleString();
@@ -547,7 +547,7 @@ function ThreadMenu({
       id: "move-to-category",
       label: "Move to Category",
       icon: Layers,
-      children: ALL_CATEGORIES.map((cat) => ({
+      children: (useUIStore.getState().inboxViewMode === "three-split" ? ALL_THREE_SPLIT_CATEGORIES : ALL_FIVE_SPLIT_CATEGORIES).map((cat) => ({
         id: `cat-${cat}`,
         label: cat,
         action: async () => {
