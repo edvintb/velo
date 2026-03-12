@@ -135,6 +135,9 @@ export function AddressInput({
           }}
           placeholder={addresses.length === 0 ? placeholder : ""}
           aria-label={label}
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           className="flex-1 min-w-[120px] bg-transparent text-sm text-text-primary outline-none placeholder:text-text-tertiary"
         />
 

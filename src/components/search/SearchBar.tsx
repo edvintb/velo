@@ -69,6 +69,9 @@ export function SearchBar() {
         onChange={(e) => handleChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Search... (from: to: has:attachment)"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
         className="w-full bg-bg-tertiary text-text-primary text-sm pl-8 pr-14 py-1.5 rounded-md border border-border-primary focus:border-accent focus:outline-none placeholder:text-text-tertiary"
       />
       {searchQuery && (
