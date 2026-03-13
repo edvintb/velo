@@ -10,6 +10,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useComposerStore } from "../../stores/composerStore";
 import { navigateToLabel } from "../../router/navigate";
 import { normalizeEmail } from "@/utils/emailUtils";
+import { archiveThread } from "../emailActions";
 
 let initialized = false;
 let notificationsEnabled = true;
@@ -85,7 +86,6 @@ export async function initNotifications(): Promise<void> {
         });
       } else if (actionId === "archive" && ctx?.threadId && ctx?.accountId) {
         try {
-          const { archiveThread } = await import("../emailActions");
           await archiveThread(ctx.accountId, ctx.threadId, []);
         } catch (err) {
           console.error("Failed to archive from notification:", err);

@@ -5,6 +5,7 @@ import { enqueuePendingOperation } from "@/services/db/pendingOperations";
 import { classifyError } from "@/utils/networkErrors";
 import { getDb } from "@/services/db/connection";
 import { navigateToThread, getSelectedThreadId } from "@/router/navigate";
+import { getGmailClient } from "@/services/gmail/tokenManager";
 
 // ---------------------------------------------------------------------------
 // Action types
@@ -556,7 +557,6 @@ export async function deleteDraftThread(
   accountId: string,
   threadId: string,
 ): Promise<void> {
-  const { getGmailClient } = await import("@/services/gmail/tokenManager");
   const { deleteDraftsForThread } = await import("@/services/gmail/draftDeletion");
 
   const nextKey = getNextThreadKey(accountId, threadId);

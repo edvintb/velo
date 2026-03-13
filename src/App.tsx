@@ -60,6 +60,7 @@ import {
 import { fetchSendAsAliases } from "./services/gmail/sendAs";
 import { getGmailClient } from "./services/gmail/tokenManager";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { DndProvider } from "./components/dnd/DndProvider";
 import { TitleBar } from "./components/layout/TitleBar";
 import { useShortcutStore } from "./stores/shortcutStore";
@@ -188,15 +189,13 @@ export default function App() {
   // Listen for tray "Check for Mail" button
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-    import("@tauri-apps/api/event").then(({ listen }) => {
-      listen("tray-check-mail", () => {
-        const accounts = useAccountStore.getState().accounts;
-        const activeIds = accounts.filter((a) => a.isActive).map((a) => a.id);
-        if (activeIds.length > 0) {
-          triggerSync(activeIds);
-        }
-      }).then((fn) => { unlisten = fn; });
-    });
+    listen("tray-check-mail", () => {
+      const accounts = useAccountStore.getState().accounts;
+      const activeIds = accounts.filter((a) => a.isActive).map((a) => a.id);
+      if (activeIds.length > 0) {
+        triggerSync(activeIds);
+      }
+    }).then((fn) => { unlisten = fn; });
     return () => { unlisten?.(); };
   }, []);
 

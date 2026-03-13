@@ -9,6 +9,7 @@ import {
   uncompleteTask,
   deleteTask as dbDeleteTask,
   getSubtasks,
+  getIncompleteTaskCount,
 } from "@/services/db/tasks";
 import type { DbTask } from "@/services/db/tasks";
 import { handleRecurringTaskCompletion } from "@/services/tasks/taskManager";
@@ -64,7 +65,6 @@ export function TaskSidebar({ accountId, threadId }: TaskSidebarProps) {
     const tasks = await getTasksForThread(accountId, threadId);
     setThreadTasks(tasks);
     // Update count
-    const { getIncompleteTaskCount } = await import("@/services/db/tasks");
     const count = await getIncompleteTaskCount(accountId);
     useTaskStore.getState().setIncompleteCount(count);
   }, [accountId, threadId, setThreadTasks, threadTasks]);
@@ -73,7 +73,6 @@ export function TaskSidebar({ accountId, threadId }: TaskSidebarProps) {
     await dbDeleteTask(id);
     const tasks = await getTasksForThread(accountId, threadId);
     setThreadTasks(tasks);
-    const { getIncompleteTaskCount } = await import("@/services/db/tasks");
     const count = await getIncompleteTaskCount(accountId);
     useTaskStore.getState().setIncompleteCount(count);
   }, [accountId, threadId, setThreadTasks]);

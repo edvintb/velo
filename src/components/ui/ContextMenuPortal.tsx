@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { useContextMenuStore } from "@/stores/contextMenuStore";
 import { useThreadStore, threadKey, parseThreadKey } from "@/stores/threadStore";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useAccountStore, ALL_ACCOUNTS_ID, getAllAccountIds } from "@/stores/accountStore";
 import { getActiveLabel } from "@/router/navigate";
 import { useComposerStore } from "@/stores/composerStore";
@@ -386,7 +387,6 @@ function ThreadMenu({
 
   const handlePopOut = async () => {
     try {
-      const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
       const windowLabel = `thread-${thread.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
       const url = `index.html?thread=${encodeURIComponent(thread.id)}&account=${encodeURIComponent(thread.accountId)}`;
       const existing = await WebviewWindow.getByLabel(windowLabel);
