@@ -36,10 +36,10 @@ vi.mock("@/stores/threadStore", () => ({
     vi.fn(() => ({})),
     {
       getState: () => ({
-        threads: [{ id: "thread-1", labelIds: ["INBOX"] }],
+        threads: [{ id: "thread-1", accountId: "acc-1", labelIds: ["INBOX"] }],
         threadMap: new Map([
-          ["thread-1", { id: "thread-1", accountId: "acc-1", labelIds: ["INBOX"] }],
-          ["thread-2", { id: "thread-2", accountId: "acc-1", labelIds: ["INBOX"] }],
+          ["acc-1:thread-1", { id: "thread-1", accountId: "acc-1", labelIds: ["INBOX"] }],
+          ["acc-1:thread-2", { id: "thread-2", accountId: "acc-1", labelIds: ["INBOX"] }],
         ]),
       }),
     },
@@ -53,6 +53,8 @@ vi.mock("@/services/emailActions", () => ({
   addThreadLabel: vi.fn(() => Promise.resolve({ success: true })),
   removeThreadLabel: vi.fn(() => Promise.resolve({ success: true })),
   moveThread: vi.fn(() => Promise.resolve({ success: true })),
+  advanceAndRemoveThread: vi.fn(),
+  advanceAndRemoveThreads: vi.fn(),
 }));
 
 // CSSTransition mock: render children immediately when `in` is true
@@ -71,7 +73,7 @@ import { archiveThread, trashThread, spamThread, addThreadLabel, removeThreadLab
 
 const defaultProps = {
   isOpen: true,
-  threadIds: ["thread-1"],
+  threadIds: ["acc-1:thread-1"],
   onClose: vi.fn(),
 };
 
@@ -115,7 +117,7 @@ describe("MoveToFolderDialog", () => {
     const input = screen.getByPlaceholderText("Move to...");
     fireEvent.change(input, { target: { value: "nonexistent" } });
 
-    expect(screen.getByText("No matching folders or labels")).toBeInTheDocument();
+    expect(screen.getByText("No matches")).toBeInTheDocument();
   });
 
   it("calls archiveThread when Archive is selected", async () => {
@@ -190,7 +192,7 @@ describe("MoveToFolderDialog", () => {
   });
 
   it("handles multiple threadIds", async () => {
-    render(<MoveToFolderDialog {...defaultProps} threadIds={["thread-1", "thread-2"]} />);
+    render(<MoveToFolderDialog {...defaultProps} threadIds={["acc-1:thread-1", "acc-1:thread-2"]} />);
 
     fireEvent.click(screen.getByText("Archive"));
 
@@ -217,6 +219,6 @@ describe("MoveToFolderDialog", () => {
 
     expect(screen.getByText("navigate")).toBeInTheDocument();
     expect(screen.getByText("select")).toBeInTheDocument();
-    expect(screen.getByText("close")).toBeInTheDocument();
+    expect(screen.getByText("dismiss")).toBeInTheDocument();
   });
 });

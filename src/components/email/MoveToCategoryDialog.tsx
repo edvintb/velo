@@ -7,6 +7,7 @@ import {
   type CategoryMode,
 } from "@/services/db/threadCategories";
 import { setThreadCategoryManual } from "@/services/db/threadCategories";
+import { advanceAndRemoveThreads } from "@/services/emailActions";
 import {
   Mail,
   Bell,
@@ -85,6 +86,8 @@ export function MoveToCategoryDialog({ isOpen, threadIds, onClose }: MoveToCateg
         await setThreadCategoryManual(acctId, realThreadId, item.id, mode);
       }
 
+      // Remove from current view and advance focus
+      advanceAndRemoveThreads(threadIds);
       window.dispatchEvent(new Event("velo-sync-done"));
     },
     [threadIds, mode, onClose],

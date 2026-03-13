@@ -1,6 +1,6 @@
 import type { QuickStep, QuickStepAction, QuickStepExecutionResult } from "./types";
 import { ACTION_TYPE_METADATA } from "./types";
-import { archiveThread, trashThread, markThreadRead, starThread, spamThread, addThreadLabel, removeThreadLabel } from "../emailActions";
+import { archiveThread, trashThread, markThreadRead, starThread, spamThread, addThreadLabel, removeThreadLabel, advanceAndRemoveThreads } from "../emailActions";
 import {
   pinThread as pinThreadDb,
   unpinThread as unpinThreadDb,
@@ -181,7 +181,7 @@ export async function executeQuickStep(
       if (!quickStep.continueOnError) {
         // Fail-fast: still remove threads if a prior action flagged removal
         if (shouldRemoveThreads) {
-          useThreadStore.getState().removeThreads(threadIds);
+          advanceAndRemoveThreads(threadIds);
         }
         return {
           success: false,
@@ -197,7 +197,7 @@ export async function executeQuickStep(
 
   // After all actions complete, batch-remove threads if any action flagged it
   if (shouldRemoveThreads) {
-    useThreadStore.getState().removeThreads(threadIds);
+    advanceAndRemoveThreads(threadIds);
   }
 
   return {

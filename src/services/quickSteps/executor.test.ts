@@ -8,6 +8,7 @@ const mockStarThread = vi.fn(() => Promise.resolve({ success: true }));
 const mockSpamThread = vi.fn(() => Promise.resolve({ success: true }));
 const mockAddThreadLabel = vi.fn(() => Promise.resolve({ success: true }));
 const mockRemoveThreadLabel = vi.fn(() => Promise.resolve({ success: true }));
+const mockAdvanceAndRemoveThreads = vi.fn();
 
 vi.mock("../emailActions", () => ({
   archiveThread: (...args: unknown[]) => mockArchiveThread(...args),
@@ -17,6 +18,7 @@ vi.mock("../emailActions", () => ({
   spamThread: (...args: unknown[]) => mockSpamThread(...args),
   addThreadLabel: (...args: unknown[]) => mockAddThreadLabel(...args),
   removeThreadLabel: (...args: unknown[]) => mockRemoveThreadLabel(...args),
+  advanceAndRemoveThreads: (...args: unknown[]) => mockAdvanceAndRemoveThreads(...args),
 }));
 
 vi.mock("@/services/db/threads", () => ({
@@ -72,7 +74,7 @@ describe("executeQuickStep", () => {
     expect(result.totalActions).toBe(1);
     expect(mockArchiveThread).toHaveBeenCalledWith("acct-1", "t1", []);
     // archive removes from view — threads should be batch-removed after chain completes
-    expect(useThreadStore.getState().removeThreads).toHaveBeenCalledWith(["t1"]);
+    expect(mockAdvanceAndRemoveThreads).toHaveBeenCalledWith(["t1"]);
   });
 
   it("executes a multi-action chain (markRead + archive)", async () => {
@@ -93,7 +95,7 @@ describe("executeQuickStep", () => {
     expect(mockArchiveThread).toHaveBeenCalledWith("acct-1", "t1", []);
 
     // Deferred removal after chain
-    expect(useThreadStore.getState().removeThreads).toHaveBeenCalledWith(["t1"]);
+    expect(mockAdvanceAndRemoveThreads).toHaveBeenCalledWith(["t1"]);
   });
 
   it("fails fast by default", async () => {
@@ -154,8 +156,8 @@ describe("executeQuickStep", () => {
     expect(mockArchiveThread).toHaveBeenCalledWith("acct-1", "t1", []);
 
     // removeThreads should be called once, after all actions complete
-    expect(useThreadStore.getState().removeThreads).toHaveBeenCalledTimes(1);
-    expect(useThreadStore.getState().removeThreads).toHaveBeenCalledWith(["t1"]);
+    expect(mockAdvanceAndRemoveThreads).toHaveBeenCalledTimes(1);
+    expect(mockAdvanceAndRemoveThreads).toHaveBeenCalledWith(["t1"]);
   });
 
   it("dispatches event for reply action and does not remove from view", async () => {
@@ -174,7 +176,7 @@ describe("executeQuickStep", () => {
         detail: { threadId: "t1", accountId: "acct-1", mode: "reply" },
       }),
     );
-    expect(useThreadStore.getState().removeThreads).not.toHaveBeenCalled();
+    expect(mockAdvanceAndRemoveThreads).not.toHaveBeenCalled();
 
     dispatchSpy.mockRestore();
   });
@@ -239,7 +241,7 @@ describe("executeQuickStep", () => {
 
     expect(result.success).toBe(true);
     expect(mockSpamThread).toHaveBeenCalledWith("acct-1", "t1", [], true);
-    expect(useThreadStore.getState().removeThreads).toHaveBeenCalledWith(["t1"]);
+    expect(mockAdvanceAndRemoveThreads).toHaveBeenCalledWith(["t1"]);
   });
 
   it("handles multiple threads", async () => {
