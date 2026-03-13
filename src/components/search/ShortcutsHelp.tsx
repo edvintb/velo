@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { SHORTCUTS, type ShortcutItem } from "@/constants/shortcuts";
 import { useShortcutStore } from "@/stores/shortcutStore";
 import { useUIStore } from "@/stores/uiStore";
@@ -19,8 +19,18 @@ const SPLIT_ONLY = new Set(["nav.goPrimary", "nav.goNewsletters", "action.catego
 export function ShortcutsHelp({ isOpen, onClose }: ShortcutsHelpProps) {
   const keyMap = useShortcutStore((s) => s.keyMap);
   const mode = useUIStore((s) => s.inboxViewMode);
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setQuery("");
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [isOpen]);
 
   const sections = useMemo(() => {
+    const q = query.toLowerCase().trim();
     return SHORTCUTS.map((section) => {
       const items = section.items.flatMap((item): ShortcutItem[] => {
         // Category nav / categorize action: hidden in unified mode
@@ -32,18 +42,34 @@ export function ShortcutsHelp({ isOpen, onClose }: ShortcutsHelpProps) {
         // Three-split-only items hidden in five-split
         if (THREE_SPLIT_ONLY.has(item.id) && mode !== "three-split") return [];
         // Adjust description for the merged newsletters/notifications shortcut
+        let desc = item.desc;
         if (item.id === "nav.goNewsletters") {
-          const desc = mode === "three-split" ? "Go to Notifications" : "Go to Newsletters";
-          return [{ ...item, desc }];
+          desc = mode === "three-split" ? "Go to Notifications" : "Go to Newsletters";
         }
-        return [item];
+        // Filter by search query
+        const keys = keyMap[item.id] ?? item.keys;
+        if (q && !desc.toLowerCase().includes(q) && !keys.toLowerCase().includes(q)) return [];
+        return [desc !== item.desc ? { ...item, desc } : item];
       });
       return { ...section, items };
     }).filter((section) => section.items.length > 0);
-  }, [mode]);
+  }, [mode, query, keyMap]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Keyboard Shortcuts" width="w-full max-w-lg" zIndex="z-[60]">
+      <div className="p-2 border-b border-border-secondary">
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search shortcuts..."
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          className="w-full px-3 py-1.5 text-sm bg-bg-tertiary border border-border-secondary rounded-md text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent"
+        />
+      </div>
       <div className="p-4 max-h-[60vh] overflow-y-auto space-y-4">
         {sections.map((section) => (
           <div key={section.category}>
@@ -67,6 +93,9 @@ export function ShortcutsHelp({ isOpen, onClose }: ShortcutsHelpProps) {
             </div>
           </div>
         ))}
+        {sections.length === 0 && (
+          <p className="text-sm text-text-tertiary text-center py-4">No matching shortcuts</p>
+        )}
       </div>
     </Modal>
   );
