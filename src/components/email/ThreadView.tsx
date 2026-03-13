@@ -21,6 +21,9 @@ import { AiTaskExtractDialog } from "@/components/tasks/AiTaskExtractDialog";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { MessageSkeleton } from "@/components/ui/Skeleton";
 import { RawMessageModal } from "./RawMessageModal";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeTextFile } from "@tauri-apps/plugin-fs";
 
 interface ThreadViewProps {
   thread: Thread;
@@ -28,7 +31,6 @@ interface ThreadViewProps {
 
 async function handlePopOut(thread: Thread) {
   try {
-    const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
     const windowLabel = `thread-${thread.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
     const url = `index.html?thread=${encodeURIComponent(thread.id)}&account=${encodeURIComponent(thread.accountId)}`;
 
@@ -321,9 +323,6 @@ export function ThreadView({ thread }: ThreadViewProps) {
   const handleExport = useCallback(async () => {
     if (messages.length === 0) return;
     try {
-      const { save } = await import("@tauri-apps/plugin-dialog");
-      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-
       const emlParts = messages.map((msg) => {
         const date = new Date(msg.date).toUTCString();
         const from = msg.from_name

@@ -4,6 +4,7 @@ import { useUIStore } from "@/stores/uiStore";
 import { navigateToLabel, navigateToSettings } from "@/router/navigate";
 import { useAccountStore } from "@/stores/accountStore";
 import { getSetting, setSetting, getSecureSetting, setSecureSetting } from "@/services/db/settings";
+import { getBundleRules, setBundleRule } from "@/services/db/bundleRules";
 import { PROVIDER_MODELS } from "@/services/ai/types";
 import { deleteAccount } from "@/services/db/accounts";
 import { removeClient, reauthorizeAccount } from "@/services/gmail/tokenManager";
@@ -2407,8 +2408,7 @@ function BundleSettings() {
 
   useEffect(() => {
     if (!activeAccountId) return;
-    import("@/services/db/bundleRules").then(async ({ getBundleRules }) => {
-      const dbRules = await getBundleRules(activeAccountId);
+    getBundleRules(activeAccountId).then(async (dbRules) => {
       const map: typeof rules = {};
       for (const r of dbRules) {
         let schedule = { days: [6], hour: 9, minute: 0 };
@@ -2432,7 +2432,6 @@ function BundleSettings() {
     const current = rules[category] ?? { bundled: false, delivery: false, days: [6], hour: 9, minute: 0 };
     const merged = { ...current, ...update };
     setRules((prev) => ({ ...prev, [category]: merged }));
-    const { setBundleRule } = await import("@/services/db/bundleRules");
     await setBundleRule(
       activeAccountId,
       category,

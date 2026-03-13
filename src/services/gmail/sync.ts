@@ -8,8 +8,11 @@ import { updateAccountSyncState } from "../db/accounts";
 import { shouldNotifyForMessage, queueNewEmailNotification } from "../notifications/notificationManager";
 import { applyFiltersToMessages } from "../filters/filterEngine";
 import { getSetting } from "../db/settings";
-import type { ThreeSplitConfig } from "../categorization/ruleEngine";
+import { categorizeByFiveSplitRules, categorizeByThreeSplitRules, type ThreeSplitConfig } from "../categorization/ruleEngine";
 import { getMutedThreadIds } from "../db/threads";
+import { setThreadCategoriesAuto } from "../db/threadCategories";
+import { getBundleRule, holdThread, getNextDeliveryTime } from "../db/bundleRules";
+import { loadThreeSplitConfig } from "../categorization/threeSplitConfig";
 import { getThreadCategory } from "../db/threadCategories";
 import { getVipSenders } from "../db/notificationVips";
 import { getPendingOpsForResource } from "../db/pendingOperations";
@@ -72,8 +75,6 @@ async function processAndStoreThread(
 
   // Rule-based categorization for inbox threads (both 5-split and 3-split)
   if (allLabelIds.has("INBOX")) {
-    const { setThreadCategoriesAuto } = await import("@/services/db/threadCategories");
-    const { categorizeByFiveSplitRules, categorizeByThreeSplitRules } = await import("@/services/categorization/ruleEngine");
     const catInput = {
       labelIds: [...allLabelIds],
       fromAddress: lastMessage.fromAddress,
@@ -97,7 +98,6 @@ async function processAndStoreThread(
     // Hold thread if delivery schedule is active for this category
     if (fiveCategory !== "Primary") {
       try {
-        const { getBundleRule, holdThread, getNextDeliveryTime } = await import("@/services/db/bundleRules");
         const rule = await getBundleRule(accountId, fiveCategory);
         if (rule?.delivery_enabled && rule.delivery_schedule) {
           const schedule = JSON.parse(rule.delivery_schedule);
@@ -219,7 +219,6 @@ export async function initialSync(
 
   // Load config once for the whole sync
   const autoArchiveCategories = await loadAutoArchiveCategories();
-  const { loadThreeSplitConfig } = await import("@/services/categorization/threeSplitConfig");
   const threeSplitConfig = await loadThreeSplitConfig();
 
   let progress = 0;
@@ -343,7 +342,6 @@ export async function deltaSync(
 
     // Load settings once for the whole sync cycle
     const autoArchiveCategories = await loadAutoArchiveCategories();
-    const { loadThreeSplitConfig } = await import("@/services/categorization/threeSplitConfig");
     const threeSplitConfig = await loadThreeSplitConfig();
     const mutedThreadIds = await getMutedThreadIds(accountId);
     const smartNotifications = (await getSetting("smart_notifications")) !== "false";

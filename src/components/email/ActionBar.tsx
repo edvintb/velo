@@ -11,6 +11,7 @@ import { Archive, Trash2, MailOpen, Mail, Star, Clock, Ban, Pin, MailMinus, Bell
 import type { DbMessage } from "@/services/db/messages";
 import { insertFollowUpReminder, getFollowUpForThread, cancelFollowUpForThread } from "@/services/db/followUpReminders";
 import { Button } from "@/components/ui/Button";
+import { snoozeThread } from "@/services/snooze/snoozeManager";
 
 interface ActionBarProps {
   thread: Thread;
@@ -78,7 +79,6 @@ export function ActionBar({ thread, messages, noReply, defaultReplyMode = "reply
   const handleSnooze = async (until: number) => {
     setShowSnooze(false);
     try {
-      const { snoozeThread } = await import("@/services/snooze/snoozeManager");
       await snoozeThread(accountId, thread.id, until);
       advanceAndRemoveThread(tKey);
     } catch (err) {

@@ -1,5 +1,7 @@
 import { getDb } from "@/services/db/connection";
 import { getSetting } from "@/services/db/settings";
+import { mkdir, writeFile as fsWriteFile, readFile, remove, BaseDirectory } from "@tauri-apps/plugin-fs";
+import { join } from "@tauri-apps/api/path";
 
 const CACHE_DIR = "attachment_cache";
 
@@ -22,7 +24,6 @@ export async function cacheAttachment(
   data: Uint8Array,
 ): Promise<string> {
   try {
-    const { mkdir, writeFile: fsWriteFile, BaseDirectory } = await import("@tauri-apps/plugin-fs");
     const baseDir = BaseDirectory.AppData;
 
     // Ensure cache directory exists
@@ -32,7 +33,6 @@ export async function cacheAttachment(
       // directory may already exist
     }
 
-    const { join } = await import("@tauri-apps/api/path");
     const relPath = await join(CACHE_DIR, hashFileName(attachmentId));
     await fsWriteFile(relPath, data, { baseDir });
 
@@ -54,7 +54,6 @@ export async function loadCachedAttachment(
   localPath: string,
 ): Promise<Uint8Array | null> {
   try {
-    const { readFile, BaseDirectory } = await import("@tauri-apps/plugin-fs");
     return await readFile(localPath, { baseDir: BaseDirectory.AppData });
   } catch {
     return null;
@@ -89,7 +88,6 @@ export async function evictOldestCached(): Promise<void> {
     if (freed >= excess) break;
 
     try {
-      const { remove, BaseDirectory } = await import("@tauri-apps/plugin-fs");
       await remove(row.local_path, { baseDir: BaseDirectory.AppData });
     } catch {
       // file may not exist
@@ -106,7 +104,6 @@ export async function evictOldestCached(): Promise<void> {
 
 export async function clearAllCache(): Promise<void> {
   try {
-    const { remove, BaseDirectory } = await import("@tauri-apps/plugin-fs");
     try {
       await remove(CACHE_DIR, { baseDir: BaseDirectory.AppData, recursive: true });
     } catch {

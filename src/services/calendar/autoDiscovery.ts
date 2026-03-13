@@ -1,3 +1,5 @@
+import { DAVClient } from "tsdav";
+
 interface CalDavPreset {
   name: string;
   domains: string[];
@@ -145,7 +147,6 @@ export async function testCalDavConnection(
   password: string,
 ): Promise<{ success: boolean; message: string; calendarCount?: number }> {
   try {
-    const { DAVClient } = await import("tsdav");
     const client = new DAVClient({
       serverUrl: url,
       credentials: { username, password },

@@ -5,6 +5,7 @@ import { stripRemoteImages, hasBlockedImages } from "@/utils/imageBlocker";
 import { addToAllowlist } from "@/services/db/imageAllowlist";
 import { escapeHtml, sanitizeHtml } from "@/utils/sanitize";
 import { useUIStore } from "@/stores/uiStore";
+import { getEmailProvider } from "@/services/email/providerFactory";
 import type { DbAttachment } from "@/services/db/attachments";
 
 interface EmailRendererProps {
@@ -53,7 +54,6 @@ export function EmailRenderer({
 
     (async () => {
       try {
-        const { getEmailProvider } = await import("@/services/email/providerFactory");
         const provider = await getEmailProvider(accountId);
         const resolved = new Map<string, string>();
 

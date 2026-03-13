@@ -1,14 +1,28 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createMockTauriFs, createMockTauriPath } from "@/test/mocks";
 
-const tauriFs = createMockTauriFs();
-const tauriPath = createMockTauriPath();
+const { tauriFs, mockExecute, mockSelect } = vi.hoisted(() => ({
+  tauriFs: {
+    mock: {
+      exists: vi.fn(async () => false),
+      readTextFile: vi.fn(async () => ""),
+      writeTextFile: vi.fn(async () => {}),
+      writeFile: vi.fn(),
+      readFile: vi.fn(async () => new Uint8Array([1, 2, 3])),
+      mkdir: vi.fn(async () => {}),
+      remove: vi.fn(async () => {}),
+      BaseDirectory: { AppData: 26 },
+    },
+  },
+  mockExecute: vi.fn(),
+  mockSelect: vi.fn(),
+}));
 
 vi.mock("@tauri-apps/plugin-fs", () => tauriFs.mock);
-vi.mock("@tauri-apps/api/path", () => tauriPath);
+vi.mock("@tauri-apps/api/path", () => ({
+  join: vi.fn(async (...parts: string[]) => parts.join("/")),
+  appDataDir: vi.fn(async () => "/mock/app/data/"),
+}));
 
-const mockExecute = vi.fn();
-const mockSelect = vi.fn();
 vi.mock("@/services/db/connection", () => ({
   getDb: vi.fn(() => Promise.resolve({ execute: mockExecute, select: mockSelect })),
 }));

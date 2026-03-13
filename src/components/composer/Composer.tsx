@@ -27,6 +27,8 @@ import { getDefaultSignature } from "@/services/db/signatures";
 import { getAliasesForAccount, mapDbAlias, type SendAsAlias } from "@/services/db/sendAsAliases";
 import { resolveFromAddress } from "@/utils/resolveFromAddress";
 import { startAutoSave, stopAutoSave } from "@/services/composer/draftAutoSave";
+import { getDb } from "@/services/db/connection";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getTemplatesForAccount, type DbTemplate } from "@/services/db/templates";
 import { readFileAsBase64 } from "@/utils/fileUtils";
 import { interpolateVariables } from "@/utils/templateVariables";
@@ -349,7 +351,6 @@ export function Composer() {
     if (attachmentData) {
       // The insertScheduledEmail doesn't have an attachmentPaths param,
       // so we update it separately via the existing column
-      const { getDb } = await import("@/services/db/connection");
       const db = await getDb();
       // Get the most recently inserted scheduled email for this account
       const rows = await db.select<{ id: string }[]>(
@@ -390,7 +391,6 @@ export function Composer() {
 
   const handlePopOutComposer = useCallback(async () => {
     try {
-      const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
       const state = useComposerStore.getState();
       const params = new URLSearchParams();
       params.set("compose", "true");
