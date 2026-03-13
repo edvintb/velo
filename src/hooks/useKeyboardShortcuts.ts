@@ -273,19 +273,18 @@ async function executeAction(actionId: string): Promise<void> {
         navigateToLabel("inbox", { category: "Social" });
       }
       break;
-    case "nav.goNewsletters":
-      if (useUIStore.getState().inboxViewMode === "five-split") {
+    case "nav.goNewsletters": {
+      const nlMode = useUIStore.getState().inboxViewMode;
+      if (nlMode === "five-split") {
         navigateToLabel("inbox", { category: "Newsletters" });
+      } else if (nlMode === "three-split") {
+        navigateToLabel("inbox", { category: "Notifications" });
       }
       break;
+    }
     case "nav.goFeeds":
       if (useUIStore.getState().inboxViewMode === "three-split") {
         navigateToLabel("inbox", { category: "Feeds" });
-      }
-      break;
-    case "nav.goNotifications":
-      if (useUIStore.getState().inboxViewMode === "three-split") {
-        navigateToLabel("inbox", { category: "Notifications" });
       }
       break;
     case "nav.goTasks":
