@@ -2,9 +2,9 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { CSSTransition } from "react-transition-group";
 import { useUIStore } from "@/stores/uiStore";
 import { useComposerStore } from "@/stores/composerStore";
-import { useThreadStore } from "@/stores/threadStore";
+import { parseThreadKey } from "@/stores/threadStore";
 import { useAccountStore, ALL_ACCOUNTS_ID } from "@/stores/accountStore";
-import { getGmailClient } from "@/services/gmail/tokenManager";
+import { spamThread } from "@/services/emailActions";
 import { getTemplatesForAccount, type DbTemplate } from "@/services/db/templates";
 import { useActiveLabel } from "@/hooks/useRouteNavigation";
 import { navigateToLabel, navigateBack, getSelectedThreadId } from "@/router/navigate";
@@ -56,20 +56,10 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     { id: "deselect", label: "Close Thread", shortcut: "Esc", category: "Actions", action: () => { navigateBack(); onClose(); } },
     { id: "spam", label: activeLabel === "spam" ? "Not Spam" : "Report Spam", shortcut: "!", category: "Actions", action: async () => {
       onClose();
-      const selectedId = getSelectedThreadId();
-      const accountId = useAccountStore.getState().activeAccountId;
-      if (!selectedId || !accountId) return;
-      try {
-        const client = await getGmailClient(accountId);
-        if (activeLabel === "spam") {
-          await client.modifyThread(selectedId, ["INBOX"], ["SPAM"]);
-        } else {
-          await client.modifyThread(selectedId, ["SPAM"], ["INBOX"]);
-        }
-        useThreadStore.getState().removeThread(selectedId);
-      } catch (err) {
-        console.error("Spam action failed:", err);
-      }
+      const selectedKey = getSelectedThreadId();
+      if (!selectedKey) return;
+      const { accountId, threadId } = parseThreadKey(selectedKey);
+      await spamThread(accountId, threadId, [], activeLabel !== "spam");
     } },
 
     // Tasks

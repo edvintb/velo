@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import type { Thread } from "@/stores/threadStore";
 import { useThreadStore, threadKey } from "@/stores/threadStore";
 import { useActiveLabel } from "@/hooks/useRouteNavigation";
-import { archiveThread, trashThread, permanentDeleteThread, markThreadRead, starThread, spamThread, deleteDraftThread } from "@/services/emailActions";
+import { archiveThread, trashThread, permanentDeleteThread, markThreadRead, starThread, spamThread, deleteDraftThread, advanceAndRemoveThread } from "@/services/emailActions";
 import { pinThread as pinThreadDb, unpinThread as unpinThreadDb, muteThread as muteThreadDb, unmuteThread as unmuteThreadDb } from "@/services/db/threads";
 import { SnoozeDialog } from "./SnoozeDialog";
 import { FollowUpDialog } from "./FollowUpDialog";
@@ -35,7 +35,6 @@ function Separator() {
 
 export function ActionBar({ thread, messages, noReply, defaultReplyMode = "reply", contactSidebarVisible, taskSidebarVisible, onReply, onReplyAll, onForward, onPrint, onExport, onPopOut, onToggleContactSidebar, onToggleTaskSidebar }: ActionBarProps) {
   const updateThread = useThreadStore((s) => s.updateThread);
-  const removeThread = useThreadStore((s) => s.removeThread);
   const activeLabel = useActiveLabel();
   const [showSnooze, setShowSnooze] = useState(false);
   const [showFollowUp, setShowFollowUp] = useState(false);
@@ -80,7 +79,7 @@ export function ActionBar({ thread, messages, noReply, defaultReplyMode = "reply
     setShowSnooze(false);
     try {
       await snoozeThread(accountId, thread.id, until);
-      removeThread(tKey);
+      advanceAndRemoveThread(tKey);
     } catch (err) {
       console.error("Failed to snooze:", err);
     }

@@ -74,20 +74,48 @@ export interface ActionResult {
 // Optimistic UI helpers
 // ---------------------------------------------------------------------------
 
-function getNextThreadKey(accountId: string, threadId: string): string | null {
-  // Only auto-advance if the removed thread is the one being viewed
+// ---------------------------------------------------------------------------
+// Centralized advance-and-remove helpers
+// ---------------------------------------------------------------------------
+
+function getNextKey(key: string): string | null {
   const selectedKey = getSelectedThreadId();
-  const currentKey = threadKey({ accountId, id: threadId });
-  if (selectedKey !== currentKey) return null;
+  if (selectedKey !== key) return null;
   const { threads } = useThreadStore.getState();
-  const idx = threads.findIndex((t) => threadKey(t) === currentKey);
+  const idx = threads.findIndex((t) => threadKey(t) === key);
   if (idx === -1) return null;
-  // Prefer next thread, fall back to previous
   const next = threads[idx + 1];
   if (next) return threadKey(next);
   const prev = threads[idx - 1];
   if (prev) return threadKey(prev);
   return null;
+}
+
+/**
+ * Remove a thread from the store and auto-advance to the next/previous thread
+ * if the removed thread was the one currently being viewed.
+ * Use this everywhere a thread is removed from the current view.
+ */
+export function advanceAndRemoveThread(key: string): void {
+  const nextKey = getNextKey(key);
+  useThreadStore.getState().removeThread(key);
+  if (nextKey) navigateToThread(nextKey);
+}
+
+/**
+ * Batch version of advanceAndRemoveThread. Advances past the first removed
+ * thread if it was selected.
+ */
+export function advanceAndRemoveThreads(keys: string[]): void {
+  if (keys.length === 0) return;
+  // Find advance target before any removal
+  const selectedKey = getSelectedThreadId();
+  let nextKey: string | null = null;
+  if (selectedKey && keys.includes(selectedKey)) {
+    nextKey = getNextKey(selectedKey);
+  }
+  useThreadStore.getState().removeThreads(keys);
+  if (nextKey) navigateToThread(nextKey);
 }
 
 function applyOptimisticUpdate(accountId: string, action: EmailAction): void {
@@ -101,11 +129,7 @@ function applyOptimisticUpdate(accountId: string, action: EmailAction): void {
     case "permanentDelete":
     case "spam":
     case "moveToFolder": {
-      const nextKey = getNextThreadKey(accountId, action.threadId);
-      store.removeThread(threadKey({ accountId, id: action.threadId }));
-      if (nextKey) {
-        navigateToThread(nextKey);
-      }
+      advanceAndRemoveThread(threadKey({ accountId, id: action.threadId }));
       break;
     }
     case "markRead":
@@ -559,10 +583,7 @@ export async function deleteDraftThread(
 ): Promise<void> {
   const { deleteDraftsForThread } = await import("@/services/gmail/draftDeletion");
 
-  const nextKey = getNextThreadKey(accountId, threadId);
-  const key = threadKey({ accountId, id: threadId } as any);
-  useThreadStore.getState().removeThread(key);
-  if (nextKey) navigateToThread(nextKey);
+  advanceAndRemoveThread(threadKey({ accountId, id: threadId }));
 
   const client = await getGmailClient(accountId);
   await deleteDraftsForThread(client, accountId, threadId);

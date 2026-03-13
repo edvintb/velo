@@ -9,7 +9,7 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { useThreadStore, parseThreadKey } from "@/stores/threadStore";
-import { addThreadLabel, removeThreadLabel } from "@/services/emailActions";
+import { addThreadLabel, removeThreadLabel, advanceAndRemoveThreads } from "@/services/emailActions";
 
 // Map sidebar IDs to Gmail label IDs (same as EmailList)
 const LABEL_MAP: Record<string, string> = {
@@ -65,7 +65,6 @@ interface DndProviderProps {
 
 export function DndProvider({ children }: DndProviderProps) {
   const [dragData, setDragData] = useState<DragData | null>(null);
-  const removeThreads = useThreadStore((s) => s.removeThreads);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -102,8 +101,8 @@ export function DndProvider({ children }: DndProviderProps) {
           await removeThreadLabel(accountId, threadId, labelId);
         }
       }
-      // Remove from current view
-      removeThreads(dragData.threadIds);
+      // Remove from current view and advance focus
+      advanceAndRemoveThreads(dragData.threadIds);
     } catch (err) {
       console.error("Failed to move threads:", err);
     }

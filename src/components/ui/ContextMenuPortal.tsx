@@ -7,7 +7,7 @@ import { useAccountStore, ALL_ACCOUNTS_ID, getAllAccountIds } from "@/stores/acc
 import { getActiveLabel } from "@/router/navigate";
 import { useComposerStore } from "@/stores/composerStore";
 import { useLabelStore } from "@/stores/labelStore";
-import { archiveThread, trashThread, permanentDeleteThread, markThreadRead, starThread, spamThread, addThreadLabel, removeThreadLabel, deleteDraftThread } from "@/services/emailActions";
+import { archiveThread, trashThread, permanentDeleteThread, markThreadRead, starThread, spamThread, addThreadLabel, removeThreadLabel, deleteDraftThread, advanceAndRemoveThread } from "@/services/emailActions";
 import { pinThread as pinThreadDb, unpinThread as unpinThreadDb, muteThread as muteThreadDb, unmuteThread as unmuteThreadDb } from "@/services/db/threads";
 import { getMessagesForThread } from "@/services/db/messages";
 import { snoozeThread } from "@/services/snooze/snoozeManager";
@@ -69,7 +69,7 @@ export function ContextMenuPortal() {
           onSnooze={async (until) => {
             for (const id of snoozeTarget.threadIds) {
               await snoozeThread(snoozeTarget.accountId, id, until);
-              useThreadStore.getState().removeThread(
+              advanceAndRemoveThread(
                 threadKey({ accountId: snoozeTarget.accountId, id }),
               );
             }
@@ -106,7 +106,7 @@ export function ContextMenuPortal() {
           onSnooze={async (until) => {
             for (const id of snoozeTarget.threadIds) {
               await snoozeThread(snoozeTarget.accountId, id, until);
-              useThreadStore.getState().removeThread(
+              advanceAndRemoveThread(
                 threadKey({ accountId: snoozeTarget.accountId, id }),
               );
             }
