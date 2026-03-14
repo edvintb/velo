@@ -601,6 +601,8 @@ export function Sidebar({ collapsed, onAddAccount }: SidebarProps) {
         )}
       </nav>
 
+      <SyncIndicator collapsed={collapsed} />
+
       {/* Bottom bar: Settings + collapse toggle */}
       <div className={`py-2 border-t border-border-primary flex ${collapsed ? "flex-col items-center gap-1 px-2" : "items-center gap-1 px-3"}`}>
         <button
@@ -659,6 +661,40 @@ export function Sidebar({ collapsed, onAddAccount }: SidebarProps) {
       {/* Pending operations indicator */}
       <PendingOpsIndicator collapsed={collapsed} />
     </aside>
+  );
+}
+
+function SyncIndicator({ collapsed }: { collapsed: boolean }) {
+  const syncStatus = useUIStore((s) => s.syncStatus);
+  const syncProgress = useUIStore((s) => s.syncProgress);
+  if (!syncStatus) return null;
+
+  const isError = syncStatus.startsWith("Sync failed");
+  const isDone = syncStatus === "Sync complete";
+  const progressWidth = syncProgress != null ? `${Math.round(syncProgress * 100)}%` : undefined;
+
+  return (
+    <div className="px-3 pb-1">
+      {!collapsed && (
+        <div className={`text-[0.6875rem] mb-1 truncate ${isError ? "text-danger" : "text-text-tertiary"}`}>
+          {syncStatus}
+        </div>
+      )}
+      <div className={`h-1 rounded-full overflow-hidden ${isError ? "bg-danger/20" : "bg-accent/20"}`}>
+        {progressWidth ? (
+          <div
+            className={`h-full rounded-full transition-[width] duration-300 ease-out ${
+              isError ? "bg-danger" : isDone ? "bg-success" : "bg-accent"
+            }`}
+            style={{ width: progressWidth }}
+          />
+        ) : (
+          <div
+            className={`h-full w-1/3 rounded-full ${isError ? "bg-danger" : "bg-accent"} animate-[indeterminate_1.5s_ease-in-out_infinite]`}
+          />
+        )}
+      </div>
+    </div>
   );
 }
 
