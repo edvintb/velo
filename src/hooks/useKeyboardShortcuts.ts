@@ -8,6 +8,7 @@ import { useContextMenuStore } from "@/stores/contextMenuStore";
 import { navigateToLabel, navigateToThread, navigateBack, getActiveLabel, getSelectedThreadId, navigateToSettings } from "@/router/navigate";
 import { archiveThread, trashThread, permanentDeleteThread, starThread, spamThread, deleteDraftThread } from "@/services/emailActions";
 import { pinThread as pinThreadDb, unpinThread as unpinThreadDb, muteThread as muteThreadDb, unmuteThread as unmuteThreadDb } from "@/services/db/threads";
+import { beginBatch, endBatch, addUndoItem, captureThreadSnapshot, executeUndo } from "@/services/undoStack";
 import { getMessagesForThread } from "@/services/db/messages";
 import { parseUnsubscribeUrl } from "@/components/email/MessageItem";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -328,11 +329,13 @@ async function executeAction(actionId: string): Promise<void> {
       const multiKeys = useThreadStore.getState().selectedThreadIds;
       if (multiKeys.size > 0) {
         const keys = [...multiKeys];
+        beginBatch();
         for (const key of keys) {
           const acctId = getAccountIdForKey(key);
           const { threadId } = parseThreadKey(key);
           await archiveThread(acctId, threadId, []);
         }
+        endBatch();
       } else if (selectedKey) {
         const acctId = getSelectedThreadAccountId();
         if (acctId) {
@@ -349,6 +352,7 @@ async function executeAction(actionId: string): Promise<void> {
       const multiDeleteKeys = useThreadStore.getState().selectedThreadIds;
       if (multiDeleteKeys.size > 0) {
         const keys = [...multiDeleteKeys];
+        beginBatch();
         for (const key of keys) {
           const acctId = getAccountIdForKey(key);
           const { threadId } = parseThreadKey(key);
@@ -360,6 +364,7 @@ async function executeAction(actionId: string): Promise<void> {
             await trashThread(acctId, threadId, []);
           }
         }
+        endBatch();
       } else if (selectedKey) {
         const acctId = getSelectedThreadAccountId();
         if (acctId) {
@@ -389,11 +394,13 @@ async function executeAction(actionId: string): Promise<void> {
       const multiSpamKeys = useThreadStore.getState().selectedThreadIds;
       if (multiSpamKeys.size > 0) {
         const keys = [...multiSpamKeys];
+        beginBatch();
         for (const key of keys) {
           const acctId = getAccountIdForKey(key);
           const { threadId } = parseThreadKey(key);
           await spamThread(acctId, threadId, [], !isSpamView);
         }
+        endBatch();
       } else if (selectedKey) {
         const acctId = getSelectedThreadAccountId();
         if (acctId) {
@@ -408,6 +415,16 @@ async function executeAction(actionId: string): Promise<void> {
         const thread = threads.find((t) => threadKey(t) === selectedKey);
         if (thread) {
           const newPinned = !thread.isPinned;
+          const wasPinned = thread.isPinned;
+          const pinKey = selectedKey;
+          addUndoItem({
+            accountId: thread.accountId,
+            customUndo: async () => {
+              useThreadStore.getState().updateThread(pinKey, { isPinned: wasPinned });
+              if (wasPinned) await pinThreadDb(thread.accountId, thread.id);
+              else await unpinThreadDb(thread.accountId, thread.id);
+            },
+          });
           useThreadStore.getState().updateThread(selectedKey, { isPinned: newPinned });
           try {
             if (newPinned) {
@@ -457,9 +474,25 @@ async function executeAction(actionId: string): Promise<void> {
       const multiMuteKeys = useThreadStore.getState().selectedThreadIds;
       if (multiMuteKeys.size > 0) {
         const keys = [...multiMuteKeys];
+        beginBatch();
         for (const key of keys) {
           const t = useThreadStore.getState().threadMap.get(key);
           if (!t) continue;
+          const wasMuted = t.isMuted;
+          const snapshot = wasMuted ? undefined : captureThreadSnapshot(t.accountId, t.id);
+          addUndoItem({
+            accountId: t.accountId,
+            snapshot,
+            customUndo: async () => {
+              if (wasMuted) {
+                await muteThreadDb(t.accountId, t.id);
+                useThreadStore.getState().updateThread(key, { isMuted: true });
+              } else {
+                await unmuteThreadDb(t.accountId, t.id);
+                useThreadStore.getState().updateThread(key, { isMuted: false });
+              }
+            },
+          });
           if (t.isMuted) {
             await unmuteThreadDb(t.accountId, t.id);
             useThreadStore.getState().updateThread(key, { isMuted: false });
@@ -468,9 +501,26 @@ async function executeAction(actionId: string): Promise<void> {
             await archiveThread(t.accountId, t.id, []);
           }
         }
+        endBatch();
       } else if (selectedKey) {
         const thread = threads.find((t) => threadKey(t) === selectedKey);
         if (thread) {
+          const wasMuted = thread.isMuted;
+          const snapshot = wasMuted ? undefined : captureThreadSnapshot(thread.accountId, thread.id);
+          const muteKey = selectedKey;
+          addUndoItem({
+            accountId: thread.accountId,
+            snapshot,
+            customUndo: async () => {
+              if (wasMuted) {
+                await muteThreadDb(thread.accountId, thread.id);
+                useThreadStore.getState().updateThread(muteKey, { isMuted: true });
+              } else {
+                await unmuteThreadDb(thread.accountId, thread.id);
+                useThreadStore.getState().updateThread(muteKey, { isMuted: false });
+              }
+            },
+          });
           if (thread.isMuted) {
             await unmuteThreadDb(thread.accountId, thread.id);
             useThreadStore.getState().updateThread(selectedKey, { isMuted: false });
@@ -513,6 +563,9 @@ async function executeAction(actionId: string): Promise<void> {
       break;
     case "app.settings":
       navigateToSettings();
+      break;
+    case "app.undo":
+      await executeUndo();
       break;
     case "app.syncFolder": {
       const activeAccountId = useAccountStore.getState().activeAccountId;

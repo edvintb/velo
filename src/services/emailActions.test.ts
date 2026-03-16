@@ -12,6 +12,8 @@ vi.mock("@/stores/threadStore", () => ({
     getState: vi.fn(() => ({
       updateThread: vi.fn(),
       removeThread: vi.fn(),
+      threads: [],
+      threadMap: new Map(),
     })),
   },
   threadKey: (t: { accountId: string; id: string }) => `${t.accountId}:${t.id}`,
@@ -41,6 +43,12 @@ vi.mock("@/services/db/connection", () => ({
 vi.mock("@/router/navigate", () => ({
   navigateToThread: vi.fn(),
   getSelectedThreadId: vi.fn(() => null),
+}));
+
+vi.mock("@/services/undoStack", () => ({
+  getIsUndo: vi.fn(() => false),
+  addUndoItem: vi.fn(),
+  captureThreadSnapshot: vi.fn(() => undefined),
 }));
 
 import { useUIStore } from "@/stores/uiStore";

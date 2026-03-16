@@ -8,6 +8,8 @@ import { useComposerStore } from "@/stores/composerStore";
 import { useLabelStore } from "@/stores/labelStore";
 import { archiveThread, trashThread, permanentDeleteThread, markThreadRead, starThread, spamThread, addThreadLabel, removeThreadLabel, deleteDraftThread } from "@/services/emailActions";
 import { pinThread as pinThreadDb, unpinThread as unpinThreadDb, muteThread as muteThreadDb, unmuteThread as unmuteThreadDb } from "@/services/db/threads";
+import { beginBatch, endBatch, addUndoItem, captureThreadSnapshot } from "@/services/undoStack";
+import { getThreadCategory } from "@/services/db/threadCategories";
 import { getMessagesForThread } from "@/services/db/messages";
 import { snoozeThread } from "@/services/snooze/snoozeManager";
 import { getEnabledQuickStepsForAccount, type DbQuickStep } from "@/services/db/quickSteps";
@@ -303,14 +305,17 @@ function ThreadMenu({
   };
 
   const handleArchive = async () => {
+    beginBatch();
     for (const key of targetKeys) {
       const t = useThreadStore.getState().threadMap.get(key);
       if (!t) continue;
       await archiveThread(t.accountId, t.id, []);
     }
+    endBatch();
   };
 
   const handleDelete = async () => {
+    beginBatch();
     for (const key of targetKeys) {
       const t = useThreadStore.getState().threadMap.get(key);
       if (!t) continue;
@@ -322,29 +327,44 @@ function ThreadMenu({
         await trashThread(t.accountId, t.id, []);
       }
     }
+    endBatch();
   };
 
   const handleToggleRead = async () => {
+    beginBatch();
     for (const key of targetKeys) {
       const t = useThreadStore.getState().threadMap.get(key);
       if (!t) continue;
       await markThreadRead(t.accountId, t.id, [], !t.isRead);
     }
+    endBatch();
   };
 
   const handleToggleStar = async () => {
+    beginBatch();
     for (const key of targetKeys) {
       const t = useThreadStore.getState().threadMap.get(key);
       if (!t) continue;
       await starThread(t.accountId, t.id, [], !t.isStarred);
     }
+    endBatch();
   };
 
   const handleTogglePin = async () => {
+    beginBatch();
     for (const key of targetKeys) {
       const t = useThreadStore.getState().threadMap.get(key);
       if (!t) continue;
       const newPinned = !t.isPinned;
+      const wasPinned = t.isPinned;
+      addUndoItem({
+        accountId: t.accountId,
+        customUndo: async () => {
+          useThreadStore.getState().updateThread(key, { isPinned: wasPinned });
+          if (wasPinned) await pinThreadDb(t.accountId, t.id);
+          else await unpinThreadDb(t.accountId, t.id);
+        },
+      });
       useThreadStore.getState().updateThread(key, { isPinned: newPinned });
       if (newPinned) {
         await pinThreadDb(t.accountId, t.id);
@@ -352,14 +372,17 @@ function ThreadMenu({
         await unpinThreadDb(t.accountId, t.id);
       }
     }
+    endBatch();
   };
 
   const handleSpam = async () => {
+    beginBatch();
     for (const key of targetKeys) {
       const t = useThreadStore.getState().threadMap.get(key);
       if (!t) continue;
       await spamThread(t.accountId, t.id, [], !isSpamView);
     }
+    endBatch();
   };
 
   const handleSnooze = () => {
@@ -370,11 +393,26 @@ function ThreadMenu({
   };
 
   const handleToggleMute = async () => {
+    beginBatch();
     for (const key of targetKeys) {
       const t = useThreadStore.getState().threadMap.get(key);
       if (!t) continue;
-      const newMuted = !t.isMuted;
-      if (newMuted) {
+      const wasMuted = t.isMuted;
+      const snapshot = wasMuted ? undefined : captureThreadSnapshot(t.accountId, t.id);
+      addUndoItem({
+        accountId: t.accountId,
+        snapshot,
+        customUndo: async () => {
+          if (wasMuted) {
+            await muteThreadDb(t.accountId, t.id);
+            useThreadStore.getState().updateThread(key, { isMuted: true });
+          } else {
+            await unmuteThreadDb(t.accountId, t.id);
+            useThreadStore.getState().updateThread(key, { isMuted: false });
+          }
+        },
+      });
+      if (!wasMuted) {
         await muteThreadDb(t.accountId, t.id);
         await archiveThread(t.accountId, t.id, []);
       } else {
@@ -382,6 +420,7 @@ function ThreadMenu({
         useThreadStore.getState().updateThread(key, { isMuted: false });
       }
     }
+    endBatch();
   };
 
   const handlePopOut = async () => {
@@ -551,11 +590,25 @@ function ThreadMenu({
         id: `cat-${cat}`,
         label: cat,
         action: async () => {
+          beginBatch();
           for (const key of targetKeys) {
             const t = useThreadStore.getState().threadMap.get(key);
             if (!t) continue;
+            const prevCategory = await getThreadCategory(t.accountId, t.id);
+            const snapshot = captureThreadSnapshot(t.accountId, t.id);
+            addUndoItem({
+              accountId: t.accountId,
+              snapshot,
+              customUndo: async () => {
+                if (prevCategory) {
+                  await setThreadCategory(t.accountId, t.id, prevCategory, true);
+                }
+                window.dispatchEvent(new Event("velo-sync-done"));
+              },
+            });
             await setThreadCategory(t.accountId, t.id, cat, true);
           }
+          endBatch();
           window.dispatchEvent(new Event("velo-sync-done"));
         },
       })),

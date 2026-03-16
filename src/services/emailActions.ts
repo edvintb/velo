@@ -5,6 +5,7 @@ import { enqueuePendingOperation } from "@/services/db/pendingOperations";
 import { classifyError } from "@/utils/networkErrors";
 import { getDb } from "@/services/db/connection";
 import { navigateToThread, getSelectedThreadId } from "@/router/navigate";
+import { getIsUndo, addUndoItem, captureThreadSnapshot } from "@/services/undoStack";
 
 // ---------------------------------------------------------------------------
 // Action types
@@ -237,6 +238,80 @@ async function applyLocalDbUpdate(
 }
 
 // ---------------------------------------------------------------------------
+// Undo capture
+// ---------------------------------------------------------------------------
+
+function captureUndoState(accountId: string, action: EmailAction): void {
+  if (getIsUndo()) return;
+
+  switch (action.type) {
+    case "archive": {
+      const snapshot = captureThreadSnapshot(accountId, action.threadId);
+      addUndoItem({
+        accountId,
+        snapshot,
+        reverseAction: { type: "addLabel", threadId: action.threadId, labelId: "INBOX" },
+      });
+      break;
+    }
+    case "trash": {
+      const snapshot = captureThreadSnapshot(accountId, action.threadId);
+      addUndoItem({
+        accountId,
+        snapshot,
+        customUndo: async () => {
+          await executeEmailAction(accountId, { type: "removeLabel", threadId: action.threadId, labelId: "TRASH" });
+          await executeEmailAction(accountId, { type: "addLabel", threadId: action.threadId, labelId: "INBOX" });
+        },
+      });
+      break;
+    }
+    case "spam": {
+      const snapshot = captureThreadSnapshot(accountId, action.threadId);
+      addUndoItem({
+        accountId,
+        snapshot,
+        reverseAction: { type: "spam", threadId: action.threadId, messageIds: action.messageIds, isSpam: !action.isSpam },
+      });
+      break;
+    }
+    case "moveToFolder": {
+      const snapshot = captureThreadSnapshot(accountId, action.threadId);
+      // Can't easily reverse a folder move; snapshot restores UI, sync fixes remote
+      addUndoItem({ accountId, snapshot });
+      break;
+    }
+    case "markRead":
+      addUndoItem({
+        accountId,
+        reverseAction: { type: "markRead", threadId: action.threadId, messageIds: action.messageIds, read: !action.read },
+      });
+      break;
+    case "star":
+      addUndoItem({
+        accountId,
+        reverseAction: { type: "star", threadId: action.threadId, messageIds: action.messageIds, starred: !action.starred },
+      });
+      break;
+    case "addLabel":
+      addUndoItem({
+        accountId,
+        reverseAction: { type: "removeLabel", threadId: action.threadId, labelId: action.labelId },
+      });
+      break;
+    case "removeLabel":
+      addUndoItem({
+        accountId,
+        reverseAction: { type: "addLabel", threadId: action.threadId, labelId: action.labelId },
+      });
+      break;
+    // permanentDelete, sendMessage, createDraft, updateDraft, deleteDraft — not undoable
+    default:
+      break;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Core execution
 // ---------------------------------------------------------------------------
 
@@ -311,6 +386,9 @@ export async function executeEmailAction(
   accountId: string,
   action: EmailAction,
 ): Promise<ActionResult> {
+  // 0. Capture undo state before optimistic update
+  captureUndoState(accountId, action);
+
   // 1. Optimistic UI update
   applyOptimisticUpdate(accountId, action);
 

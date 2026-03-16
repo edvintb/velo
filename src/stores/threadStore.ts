@@ -47,6 +47,7 @@ interface ThreadState {
   updateThread: (key: string, updates: Partial<Thread>) => void;
   removeThread: (key: string) => void;
   removeThreads: (keys: string[]) => void;
+  insertThread: (thread: Thread, index?: number) => void;
   setSearch: (query: string, threadIds: Set<string> | null) => void;
   clearSearch: () => void;
 }
@@ -105,6 +106,18 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
       selectedThreadIds: new Set([...s.selectedThreadIds, ...keys]),
     }));
   },
+  insertThread: (thread, index) =>
+    set((state) => {
+      const key = threadKey(thread);
+      // Don't insert duplicates
+      if (state.threadMap.has(key)) return state;
+      const threads = [...state.threads];
+      const insertIdx = index != null && index >= 0 && index <= threads.length ? index : threads.length;
+      threads.splice(insertIdx, 0, thread);
+      const threadMap = new Map(state.threadMap);
+      threadMap.set(key, thread);
+      return { threads, threadMap };
+    }),
   setLoading: (isLoading) => set({ isLoading }),
   updateThread: (key, updates) =>
     set((state) => {

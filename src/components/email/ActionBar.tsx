@@ -4,6 +4,7 @@ import { useThreadStore, threadKey } from "@/stores/threadStore";
 import { useActiveLabel } from "@/hooks/useRouteNavigation";
 import { archiveThread, trashThread, permanentDeleteThread, markThreadRead, starThread, spamThread, deleteDraftThread } from "@/services/emailActions";
 import { pinThread as pinThreadDb, unpinThread as unpinThreadDb, muteThread as muteThreadDb, unmuteThread as unmuteThreadDb } from "@/services/db/threads";
+import { addUndoItem, captureThreadSnapshot } from "@/services/undoStack";
 import { SnoozeDialog } from "./SnoozeDialog";
 import { FollowUpDialog } from "./FollowUpDialog";
 import { Archive, Trash2, MailOpen, Mail, Star, Clock, Ban, Pin, MailMinus, BellRing, VolumeX, Reply, ReplyAll, Forward, FolderInput, Printer, Download, ExternalLink, PanelRightClose, PanelRightOpen, ListTodo } from "lucide-react";
@@ -123,6 +124,15 @@ export function ActionBar({ thread, messages, noReply, defaultReplyMode = "reply
 
   const handleTogglePin = async () => {
     const newPinned = !thread.isPinned;
+    const wasPinned = thread.isPinned;
+    addUndoItem({
+      accountId,
+      customUndo: async () => {
+        updateThread(tKey, { isPinned: wasPinned });
+        if (wasPinned) await pinThreadDb(accountId, thread.id);
+        else await unpinThreadDb(accountId, thread.id);
+      },
+    });
     updateThread(tKey, { isPinned: newPinned });
     try {
       if (newPinned) {
@@ -138,6 +148,21 @@ export function ActionBar({ thread, messages, noReply, defaultReplyMode = "reply
 
   const handleToggleMute = async () => {
     const newMuted = !thread.isMuted;
+    const wasMuted = thread.isMuted;
+    const snapshot = wasMuted ? undefined : captureThreadSnapshot(accountId, thread.id);
+    addUndoItem({
+      accountId,
+      snapshot,
+      customUndo: async () => {
+        if (wasMuted) {
+          await muteThreadDb(accountId, thread.id);
+          updateThread(tKey, { isMuted: true });
+        } else {
+          await unmuteThreadDb(accountId, thread.id);
+          updateThread(tKey, { isMuted: false });
+        }
+      },
+    });
     if (newMuted) {
       // Mute: mark as muted and archive
       updateThread(tKey, { isMuted: true });

@@ -666,8 +666,6 @@ export function Sidebar({ collapsed, onAddAccount }: SidebarProps) {
         ]}
       />
 
-      <SyncIndicator collapsed={collapsed} />
-
       {/* Pending operations indicator */}
       <PendingOpsIndicator collapsed={collapsed} />
     </aside>

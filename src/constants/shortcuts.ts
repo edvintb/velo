@@ -56,6 +56,7 @@ export const SHORTCUTS: ShortcutCategory[] = [
     { id: "app.help", keys: "?", desc: "Show keyboard shortcuts" },
     { id: "app.settings", keys: "Cmd+,", desc: "Open settings" },
     { id: "app.syncFolder", keys: "F5", desc: "Sync current folder" },
+    { id: "app.undo", keys: "Cmd+Z", desc: "Undo last action" },
   ]},
 ];
 
