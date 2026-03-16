@@ -104,9 +104,12 @@ export const MessageItem = memo(forwardRef<HTMLDivElement, MessageItemProps>(fun
           </span>
         </div>
         {expanded && (
-          <div className="mt-1 text-xs text-text-tertiary">
+          <div className="mt-1 text-xs text-text-tertiary space-y-0.5">
+            {message.from_address && (
+              <div>From: {message.from_address}</div>
+            )}
             {message.to_addresses && (
-              <span>To: {message.to_addresses}</span>
+              <div>To: {message.to_addresses}</div>
             )}
           </div>
         )}
