@@ -56,18 +56,22 @@ export async function getThreadsForCategory(
   limit = 50,
   offset = 0,
   mode: CategoryMode = "five-split",
+  labelId?: string,
 ): Promise<DbThread[]> {
   const db = await getDb();
   const col = mode === "three-split" ? "three_split_category" : "category";
+  const hasLabel = labelId != null && labelId !== "";
+  const labelJoin = hasLabel ? "INNER JOIN thread_labels tl ON tl.account_id = t.account_id AND tl.thread_id = t.id" : "";
+  const labelWhere = hasLabel ? `AND tl.label_id = '${labelId}'` : "";
   if (category === "Primary") {
     // Primary includes threads with NULL category (uncategorized)
     return db.select<DbThread[]>(
       `SELECT t.*, m.from_name, m.from_address FROM threads t
-       INNER JOIN thread_labels tl ON tl.account_id = t.account_id AND tl.thread_id = t.id
+       ${labelJoin}
        LEFT JOIN thread_categories tc ON tc.account_id = t.account_id AND tc.thread_id = t.id
        LEFT JOIN messages m ON m.account_id = t.account_id AND m.thread_id = t.id
          AND m.date = (SELECT MAX(m2.date) FROM messages m2 WHERE m2.account_id = t.account_id AND m2.thread_id = t.id)
-       WHERE t.account_id = $1 AND tl.label_id = 'INBOX' AND (tc.${col} IS NULL OR tc.${col} = 'Primary')
+       WHERE t.account_id = $1 ${labelWhere} AND (tc.${col} IS NULL OR tc.${col} = 'Primary')
        GROUP BY t.account_id, t.id
        ORDER BY t.is_pinned DESC, t.last_message_at DESC
        LIMIT $2 OFFSET $3`,
@@ -76,11 +80,11 @@ export async function getThreadsForCategory(
   }
   return db.select<DbThread[]>(
     `SELECT t.*, m.from_name, m.from_address FROM threads t
-     INNER JOIN thread_labels tl ON tl.account_id = t.account_id AND tl.thread_id = t.id
+     ${labelJoin}
      INNER JOIN thread_categories tc ON tc.account_id = t.account_id AND tc.thread_id = t.id
      LEFT JOIN messages m ON m.account_id = t.account_id AND m.thread_id = t.id
        AND m.date = (SELECT MAX(m2.date) FROM messages m2 WHERE m2.account_id = t.account_id AND m2.thread_id = t.id)
-     WHERE t.account_id = $1 AND tl.label_id = 'INBOX' AND tc.${col} = $2
+     WHERE t.account_id = $1 ${labelWhere} AND tc.${col} = $2
      GROUP BY t.account_id, t.id
      ORDER BY t.is_pinned DESC, t.last_message_at DESC
      LIMIT $3 OFFSET $4`,
@@ -287,17 +291,21 @@ export async function getThreadsForAllAccountsCategory(
   limit = 50,
   offset = 0,
   mode: CategoryMode = "five-split",
+  labelId?: string,
 ): Promise<DbThread[]> {
   const db = await getDb();
   const col = mode === "three-split" ? "three_split_category" : "category";
+  const hasLabel = labelId != null && labelId !== "";
+  const labelJoin = hasLabel ? "INNER JOIN thread_labels tl ON tl.account_id = t.account_id AND tl.thread_id = t.id" : "";
+  const labelWhere = hasLabel ? `AND tl.label_id = '${labelId}'` : "";
   if (category === "Primary") {
     return db.select<DbThread[]>(
       `SELECT t.*, m.from_name, m.from_address FROM threads t
-       INNER JOIN thread_labels tl ON tl.account_id = t.account_id AND tl.thread_id = t.id
+       ${labelJoin}
        LEFT JOIN thread_categories tc ON tc.account_id = t.account_id AND tc.thread_id = t.id
        LEFT JOIN messages m ON m.account_id = t.account_id AND m.thread_id = t.id
          AND m.date = (SELECT MAX(m2.date) FROM messages m2 WHERE m2.account_id = t.account_id AND m2.thread_id = t.id)
-       WHERE tl.label_id = 'INBOX' AND (tc.${col} IS NULL OR tc.${col} = 'Primary')
+       WHERE 1=1 ${labelWhere} AND (tc.${col} IS NULL OR tc.${col} = 'Primary')
        GROUP BY t.account_id, t.id
        ORDER BY t.is_pinned DESC, t.last_message_at DESC
        LIMIT $1 OFFSET $2`,
@@ -306,11 +314,11 @@ export async function getThreadsForAllAccountsCategory(
   }
   return db.select<DbThread[]>(
     `SELECT t.*, m.from_name, m.from_address FROM threads t
-     INNER JOIN thread_labels tl ON tl.account_id = t.account_id AND tl.thread_id = t.id
+     ${labelJoin}
      INNER JOIN thread_categories tc ON tc.account_id = t.account_id AND tc.thread_id = t.id
      LEFT JOIN messages m ON m.account_id = t.account_id AND m.thread_id = t.id
        AND m.date = (SELECT MAX(m2.date) FROM messages m2 WHERE m2.account_id = t.account_id AND m2.thread_id = t.id)
-     WHERE tl.label_id = 'INBOX' AND tc.${col} = $1
+     WHERE 1=1 ${labelWhere} AND tc.${col} = $1
      GROUP BY t.account_id, t.id
      ORDER BY t.is_pinned DESC, t.last_message_at DESC
      LIMIT $2 OFFSET $3`,

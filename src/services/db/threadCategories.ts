@@ -157,15 +157,19 @@ export async function setThreadCategoriesBatch(
 export async function getCategoryUnreadCounts(
   accountId: string,
   mode: CategoryMode,
+  labelId?: string,
 ): Promise<Map<string, number>> {
   const db = await getDb();
   const col = catCol(mode);
+  const hasLabel = labelId != null && labelId !== "";
+  const labelJoin = hasLabel ? "INNER JOIN thread_labels tl ON tl.account_id = t.account_id AND tl.thread_id = t.id" : "";
+  const labelWhere = hasLabel ? `AND tl.label_id = '${labelId}'` : "";
   const rows = await db.select<{ category: string | null; count: number }[]>(
     `SELECT tc.${col} as category, COUNT(*) as count
      FROM threads t
-     INNER JOIN thread_labels tl ON tl.account_id = t.account_id AND tl.thread_id = t.id
+     ${labelJoin}
      LEFT JOIN thread_categories tc ON tc.account_id = t.account_id AND tc.thread_id = t.id
-     WHERE t.account_id = $1 AND tl.label_id = 'INBOX' AND t.is_read = 0
+     WHERE t.account_id = $1 ${labelWhere} AND t.is_read = 0
      GROUP BY tc.${col}`,
     [accountId],
   );

@@ -255,39 +255,49 @@ async function executeAction(actionId: string): Promise<void> {
     case "nav.goPrimary": {
       const mode = useUIStore.getState().inboxViewMode;
       if (mode === "five-split" || mode === "three-split") {
-        navigateToLabel("inbox", { category: "Primary" });
+        const catLabel = getActiveLabel() === "all" ? "all" : "inbox";
+        navigateToLabel(catLabel, { category: "Primary" });
       }
       break;
     }
-    case "nav.goUpdates":
+    case "nav.goUpdates": {
       if (useUIStore.getState().inboxViewMode === "five-split") {
-        navigateToLabel("inbox", { category: "Updates" });
+        const catLabel = getActiveLabel() === "all" ? "all" : "inbox";
+        navigateToLabel(catLabel, { category: "Updates" });
       }
       break;
-    case "nav.goPromotions":
+    }
+    case "nav.goPromotions": {
       if (useUIStore.getState().inboxViewMode === "five-split") {
-        navigateToLabel("inbox", { category: "Promotions" });
+        const catLabel = getActiveLabel() === "all" ? "all" : "inbox";
+        navigateToLabel(catLabel, { category: "Promotions" });
       }
       break;
-    case "nav.goSocial":
+    }
+    case "nav.goSocial": {
       if (useUIStore.getState().inboxViewMode === "five-split") {
-        navigateToLabel("inbox", { category: "Social" });
+        const catLabel = getActiveLabel() === "all" ? "all" : "inbox";
+        navigateToLabel(catLabel, { category: "Social" });
       }
       break;
+    }
     case "nav.goNewsletters": {
       const nlMode = useUIStore.getState().inboxViewMode;
+      const catLabel = getActiveLabel() === "all" ? "all" : "inbox";
       if (nlMode === "five-split") {
-        navigateToLabel("inbox", { category: "Newsletters" });
+        navigateToLabel(catLabel, { category: "Newsletters" });
       } else if (nlMode === "three-split") {
-        navigateToLabel("inbox", { category: "Notifications" });
+        navigateToLabel(catLabel, { category: "Notifications" });
       }
       break;
     }
-    case "nav.goFeeds":
+    case "nav.goFeeds": {
       if (useUIStore.getState().inboxViewMode === "three-split") {
-        navigateToLabel("inbox", { category: "Feeds" });
+        const catLabel = getActiveLabel() === "all" ? "all" : "inbox";
+        navigateToLabel(catLabel, { category: "Feeds" });
       }
       break;
+    }
     case "nav.goTasks":
       navigateToLabel("tasks");
       break;

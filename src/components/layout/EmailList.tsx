@@ -75,10 +75,12 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
   // In split/simple-split mode, use the router's category; in unified mode, always use "All"
   const isSplitMode = inboxViewMode === "five-split" || inboxViewMode === "three-split";
   const categoryMode: CategoryMode = inboxViewMode === "three-split" ? "three-split" : "five-split";
-  const activeCategory = isSplitMode ? routerCategory : "All";
-  const setActiveCategory = isSplitMode
-    ? (cat: string) => navigateToLabel("inbox", { category: cat })
+  const hasCategoryTabs = isSplitMode && (activeLabel === "inbox" || activeLabel === "all");
+  const activeCategory = hasCategoryTabs ? routerCategory : "All";
+  const setActiveCategory = hasCategoryTabs
+    ? (cat: string) => navigateToLabel(activeLabel, { category: cat })
     : () => {};
+  const categoryLabelId = LABEL_MAP[activeLabel];
 
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -234,7 +236,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
 
   // Memoize visible threads (excludes bundled/held threads in "All" inbox view)
   const visibleThreads = useMemo(() => {
-    if (activeLabel !== "inbox" || activeCategory !== "All") return filteredThreads;
+    if (!hasCategoryTabs || activeCategory !== "All") return filteredThreads;
     return filteredThreads.filter((t) => {
       const tKey = threadKey(t);
       const cat = categoryMap.get(tKey);
@@ -295,8 +297,8 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
       } else if (isAllAccounts) {
         // Multi-account queries
         let dbThreads;
-        if (activeLabel === "inbox" && activeCategory !== "All") {
-          dbThreads = await getThreadsForAllAccountsCategory(activeCategory, PAGE_SIZE, 0, categoryMode);
+        if (hasCategoryTabs && activeCategory !== "All") {
+          dbThreads = await getThreadsForAllAccountsCategory(activeCategory, PAGE_SIZE, 0, categoryMode, categoryLabelId || undefined);
         } else {
           const gmailLabelId = LABEL_MAP[activeLabel] ?? activeLabel;
           dbThreads = await getThreadsForAllAccounts(
@@ -310,9 +312,9 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         setHasMore(dbThreads.length === PAGE_SIZE);
       } else {
         let dbThreads;
-        // Server-side category filtering for inbox
-        if (activeLabel === "inbox" && activeCategory !== "All") {
-          dbThreads = await getThreadsForCategory(activeAccountId, activeCategory, PAGE_SIZE, 0, categoryMode);
+        // Server-side category filtering for inbox and all mail
+        if (hasCategoryTabs && activeCategory !== "All") {
+          dbThreads = await getThreadsForCategory(activeAccountId, activeCategory, PAGE_SIZE, 0, categoryMode, categoryLabelId || undefined);
         } else {
           const gmailLabelId = LABEL_MAP[activeLabel] ?? activeLabel;
           dbThreads = await getThreadsForAccount(
@@ -342,8 +344,8 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
       const offset = threads.length;
       let dbThreads;
       if (isAllAccounts) {
-        if (activeLabel === "inbox" && activeCategory !== "All") {
-          dbThreads = await getThreadsForAllAccountsCategory(activeCategory, PAGE_SIZE, offset, categoryMode);
+        if (hasCategoryTabs && activeCategory !== "All") {
+          dbThreads = await getThreadsForAllAccountsCategory(activeCategory, PAGE_SIZE, offset, categoryMode, categoryLabelId || undefined);
         } else {
           const gmailLabelId = LABEL_MAP[activeLabel] ?? activeLabel;
           dbThreads = await getThreadsForAllAccounts(
@@ -353,8 +355,8 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
           );
         }
       } else {
-        if (activeLabel === "inbox" && activeCategory !== "All") {
-          dbThreads = await getThreadsForCategory(activeAccountId, activeCategory, PAGE_SIZE, offset, categoryMode);
+        if (hasCategoryTabs && activeCategory !== "All") {
+          dbThreads = await getThreadsForCategory(activeAccountId, activeCategory, PAGE_SIZE, offset, categoryMode, categoryLabelId || undefined);
         } else {
           const gmailLabelId = LABEL_MAP[activeLabel] ?? activeLabel;
           dbThreads = await getThreadsForAccount(
@@ -423,8 +425,8 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         // Build all promises based on current view
         const promises: Promise<void>[] = [];
 
-        // Categories (only for inbox "All" tab with threads)
-        if (isInbox && isAllCategory && threadIds.length > 0) {
+        // Categories (only for "All" tab in inbox/all-mail with threads)
+        if (hasCategoryTabs && isAllCategory && threadIds.length > 0) {
           promises.push(
             getCategoriesForThreads(activeAccountId, threadIds, categoryMode).then((result) => {
               if (!cancelled) {
@@ -441,10 +443,10 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
           setCategoryMap(new Map());
         }
 
-        // Unread counts (only for inbox)
-        if (isInbox) {
+        // Unread counts (for inbox and all mail with category tabs)
+        if (hasCategoryTabs) {
           promises.push(
-            getCategoryUnreadCounts(activeAccountId, categoryMode).then((result) => {
+            getCategoryUnreadCounts(activeAccountId, categoryMode, categoryLabelId || undefined).then((result) => {
               if (!cancelled) setCategoryUnreadCounts(result);
             }),
           );
@@ -585,10 +587,10 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
               ? "All Inboxes"
               : isSmartFolder
                 ? activeSmartFolder?.name ?? "Smart Folder"
-                : activeLabel === "inbox" && isSplitMode && activeCategory !== "All"
-                  ? `Inbox — ${activeCategory}`
+                : hasCategoryTabs && activeCategory !== "All"
+                  ? `${activeLabel === "all" ? "All Mail" : "Inbox"} — ${activeCategory}`
                   : LABEL_MAP[activeLabel] !== undefined
-                    ? activeLabel
+                    ? activeLabel === "all" ? "All Mail" : activeLabel
                     : userLabels.find((l) => l.id === activeLabel)?.name ?? activeLabel}
           </h2>
           <span className="text-xs text-text-tertiary">
@@ -606,8 +608,8 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         </select>
       </div>
 
-      {/* Category tabs (inbox + split mode only, not in all-accounts view) */}
-      {activeLabel === "inbox" && isSplitMode && !isAllAccounts && (
+      {/* Category tabs (inbox/all-mail + split mode only, not in all-accounts view) */}
+      {hasCategoryTabs && !isAllAccounts && (
         <CategoryTabs
           activeCategory={activeCategory}
           onCategoryChange={setActiveCategory}
@@ -680,7 +682,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
         ) : (
           <>
             {/* Bundle rows for "All" inbox view */}
-            {activeLabel === "inbox" && activeCategory === "All" && !isAllAccounts && bundleRules.map((rule) => {
+            {hasCategoryTabs && activeCategory === "All" && !isAllAccounts && bundleRules.map((rule) => {
               const summary = bundleSummaries.get(rule.category);
               if (!summary || summary.count === 0) return null;
               const isExpanded = expandedBundles.has(rule.category);
@@ -758,7 +760,7 @@ export function EmailList({ width, listRef }: { width?: number; listRef?: React.
                     onClick={handleThreadClick}
                     onContextMenu={handleThreadContextMenu}
                     category={categoryMap.get(tKey)}
-                    showCategoryBadge={activeLabel === "inbox" && activeCategory === "All"}
+                    showCategoryBadge={hasCategoryTabs && activeCategory === "All"}
                     hasFollowUp={followUpThreadIds.has(tKey)}
                   />
                 </div>
@@ -806,6 +808,7 @@ function EmptyStateForContext({
 
   switch (activeLabel) {
     case "inbox":
+    case "all":
       if (activeCategory !== "All") {
         const categoryMessages: Record<string, { title: string; subtitle: string }> = {
           Primary: { title: "Primary is clear", subtitle: "No important conversations" },
@@ -819,6 +822,7 @@ function EmptyStateForContext({
         const msg = categoryMessages[activeCategory];
         if (msg) return <EmptyState illustration={InboxClearIllustration} title={msg.title} subtitle={msg.subtitle} />;
       }
+      if (activeLabel === "all") return <EmptyState illustration={GenericEmptyIllustration} title="No emails" subtitle="No conversations found" />;
       return <EmptyState illustration={InboxClearIllustration} title="You're all caught up" subtitle="No new conversations" />;
     case "starred":
       return <EmptyState illustration={GenericEmptyIllustration} title="No starred conversations" subtitle="Star emails to find them here" />;
