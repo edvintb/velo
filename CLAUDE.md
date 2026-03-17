@@ -31,6 +31,39 @@ cargo build
 cargo test
 ```
 
+## Git Workflow — Chained Branches
+
+Development uses a **fork-based workflow** with linearly chained branches (Graphite-style). No write access to upstream `origin` — push to `fork` remote. PRs target `avihaymenahem/velo` main.
+
+### Branch structure
+
+Branches are linearly chained, each rebased on top of the previous:
+
+```
+main → branch-1 → branch-2 → branch-3 (= working tip)
+```
+
+The tip of the chain is the working branch — it contains all features integrated.
+
+### PR strategy — one at a time
+
+- **Only PR the bottom branch** (closest to main). Never open PRs for branches further up the chain.
+- Wait for that PR to merge, then rebase the next branch onto main and PR it.
+- Create PRs with: `gh pr create --repo avihaymenahem/velo --head edvintb:<branch>`
+
+### When a PR merges
+
+1. `git fetch origin main`
+2. Rebase next branch onto main: `git checkout branch-2 && git rebase origin/main`
+3. Force-push: `git push fork branch-2 --force-with-lease`
+4. Rebase all downstream branches in sequence
+5. PR the new bottom branch
+
+### Adding new work
+
+- Branch from the current tip of the chain (new work goes last in PR order)
+- If truly independent, start a separate chain off main
+
 ## Architecture
 
 Tauri v2 desktop app: Rust backend + React 19 frontend communicating via Tauri IPC.

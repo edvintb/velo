@@ -294,6 +294,9 @@ async function executeAction(actionId: string): Promise<void> {
     case "nav.goAttachments":
       navigateToLabel("attachments");
       break;
+    case "nav.goAllMail":
+      navigateToLabel("all");
+      break;
     case "nav.goCalendar":
       navigateToLabel("calendar");
       break;
